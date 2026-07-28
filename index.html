@@ -1,0 +1,894 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Odin's Watchlist  -  Daily Triage</title>
+<style>
+  :root{
+    --paper:#F2F0EA; --raised:#FBFAF6; --ink:#1C1B17; --soft:#57544B; --faint:#8B8778;
+    --line:#DCD7C8; --line2:#C4BEAB; --accent:#A6721F; --accent-ink:#7A5417; --wash:#EFE2C6;
+    --good:#0ca30c; --warnc:#fab219; --serious:#ec835a; --critical:#d03b3b;
+    --good-wash:#e3f2e3; --warn-wash:#fdf3d8; --crit-wash:#f8e2e2; --chip:#ECE9DE;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --serif:ui-serif,"Iowan Old Style",Palatino,Georgia,serif;
+  }
+  :root[data-theme="dark"]{
+    --paper:#16171B; --raised:#1D1E23; --ink:#EAE7DC; --soft:#B5B1A2; --faint:#7C7969;
+    --line:#302F2F; --line2:#423F3C; --accent:#D4A24C; --accent-ink:#E9C077; --wash:#332A16;
+    --good-wash:#17301a; --warn-wash:#33290f; --crit-wash:#331616; --chip:#2A2B31;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#16171B; --raised:#1D1E23; --ink:#EAE7DC; --soft:#B5B1A2; --faint:#7C7969;
+      --line:#302F2F; --line2:#423F3C; --accent:#D4A24C; --accent-ink:#E9C077; --wash:#332A16;
+      --good-wash:#17301a; --warn-wash:#33290f; --crit-wash:#331616; --chip:#2A2B31;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+  .wrap{max-width:1200px;margin:0 auto;padding:1.6rem 1.4rem 4rem}
+
+  header.bar{display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;border-bottom:1px solid var(--line2);padding-bottom:.9rem;margin-bottom:1.2rem}
+  header.bar h1{font-family:var(--serif);font-size:1.5rem;margin:0;font-weight:600}
+  header.bar .date{font-family:var(--mono);font-size:.8rem;color:var(--accent-ink);letter-spacing:.08em;text-transform:uppercase}
+  header.bar .spacer{flex:1}
+  .helpbtn{width:2rem;height:2rem;border-radius:50%;border:1px solid var(--line2);background:var(--raised);
+    color:var(--accent-ink);font-family:var(--serif);font-size:1.05rem;font-weight:700;cursor:pointer}
+  .helpbtn:hover{background:var(--wash)}
+  .helpbtn:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line2);
+    border:1px solid var(--line2);border-radius:4px;overflow:hidden;margin-bottom:1.1rem}
+  .tile{background:var(--raised);padding:.8rem 1rem}
+  .tile .v{font-family:var(--mono);font-size:1.45rem;color:var(--accent-ink)}
+  .tile .k{font-size:.74rem;color:var(--soft);margin-top:.1rem}
+
+  .filters{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;margin-bottom:1rem}
+  .filters .lbl{font-size:.72rem;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;margin-right:.15rem}
+  .tog{border:1px solid var(--line2);background:var(--raised);color:var(--soft);border-radius:999px;
+    padding:.28rem .7rem;font-size:.8rem;cursor:pointer}
+  .tog[aria-pressed="true"]{background:var(--wash);color:var(--accent-ink);border-color:var(--accent)}
+  select,input[type="search"]{border:1px solid var(--line2);background:var(--raised);color:var(--ink);
+    border-radius:4px;padding:.28rem .5rem;font-size:.8rem;font-family:var(--sans)}
+  .count{margin-left:auto;font-family:var(--mono);font-size:.78rem;color:var(--faint)}
+
+  .panel{background:var(--raised);border:1px solid var(--line2);border-radius:4px;margin-bottom:1.1rem;overflow:hidden}
+  .panel .cap{font-family:var(--mono);font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--faint);padding:.6rem .9rem;border-bottom:1px solid var(--line)}
+
+  /* RS ladder */
+  .ladder{padding:.7rem .9rem .9rem}
+  .lrow{display:grid;grid-template-columns:92px 1fr;gap:.6rem;align-items:center;height:24px;cursor:pointer;border-radius:3px}
+  .lrow:hover{background:var(--wash)}
+  .lrow .s{font-family:var(--mono);font-size:.78rem;text-align:right;color:var(--ink)}
+  .ltrack{position:relative;height:14px}
+  .ltrack .zero{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--line2)}
+  .lbar{position:absolute;top:1px;height:12px;border-radius:0 4px 4px 0;background:var(--accent)}
+  .lbar.neg{border-radius:4px 0 0 4px;background:var(--faint);opacity:.55}
+  .lval{position:absolute;top:-1px;font-family:var(--mono);font-size:.72rem;color:var(--soft);white-space:nowrap}
+
+  .tblwrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:.85rem;min-width:900px}
+  th,td{text-align:left;padding:.5rem .65rem;white-space:nowrap}
+  thead th{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+    border-bottom:1px solid var(--line2);position:sticky;top:0;background:var(--raised)}
+  thead th.sortable{cursor:pointer}
+  thead th.sortable:hover{color:var(--accent-ink)}
+  thead th .arr{font-size:.6rem}
+  td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  tbody tr.main{cursor:pointer;border-bottom:1px solid var(--line)}
+  tbody tr.main:hover{background:var(--wash)}
+  td .nm{display:block;font-size:.68rem;color:var(--faint);max-width:190px;overflow:hidden;text-overflow:ellipsis}
+  .pos{color:var(--good)} .negv{color:var(--critical)} .neg{color:var(--critical)}
+  .pnl{margin:0 0 1rem}
+  .pnlhead{font-weight:600;font-size:.9rem;margin:.1rem 0 .4rem}
+  .pnlhead span{color:var(--soft);font-weight:400;font-size:.82rem}
+
+  .chip{display:inline-block;font-family:var(--mono);font-size:.68rem;font-weight:700;border-radius:3px;
+    padding:.1rem .42rem;border:1px solid transparent}
+  .tA{background:var(--good-wash);color:var(--good);border-color:var(--good)}
+  .tB{background:var(--warn-wash);color:var(--accent-ink);border-color:var(--warnc)}
+  .tC{background:var(--chip);color:var(--soft);border-color:var(--line2)}
+  .b{display:inline-block;font-size:.66rem;border-radius:3px;padding:.08rem .38rem;margin-right:.22rem;
+    background:var(--chip);color:var(--soft)}
+  .b.good{background:var(--good-wash);color:var(--good)}
+  .b.warn{background:var(--warn-wash);color:var(--accent-ink)}
+  .b.crit{background:var(--crit-wash);color:var(--critical)}
+
+  .ph{display:inline-block;font-family:var(--mono);font-size:.66rem;font-weight:700;border-radius:3px;
+    padding:.08rem .4rem;border:1px solid transparent;letter-spacing:.02em}
+  .phSOS{background:var(--good-wash);color:var(--good);border-color:var(--good)}
+  .phLPS{background:var(--warn-wash);color:var(--accent-ink);border-color:var(--warnc)}
+  .phBase{background:var(--chip);color:var(--soft);border-color:var(--line2)}
+  .phNone{color:var(--faint)}
+  .sep{width:1px;align-self:stretch;background:var(--line2);margin:0 .15rem}
+
+  /* 20-day RS-leadership presence strip */
+  .strip{display:inline-flex;gap:1px;align-items:center}
+  .strip i{width:4px;height:13px;border-radius:1px;background:var(--line)}
+  .strip i.on{background:var(--line2)}
+  .strip i.lead{background:var(--accent)}
+  .strip .ld{font-family:var(--mono);font-size:.7rem;color:var(--soft);margin-left:.35rem}
+  .b.new{background:var(--good-wash);color:var(--good);font-weight:700}
+
+  /* relative-volume figure (vs the stock's own 20-day average) */
+  .rv{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .rv.lo{color:var(--faint)}                 /* below normal - weak for a breakout */
+  .rv.mid{color:var(--soft)}
+  .rv.hi{color:var(--accent-ink);font-weight:700}  /* 3x+ - a real volume surge */
+
+  /* RIGHTWAY group mentions */
+  .rw{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.8rem}
+  .rw.recent{color:var(--accent-ink);font-weight:700}  /* mentioned in last 3 days */
+  .rw.mid{color:var(--soft)}
+  .rw.stale{color:var(--faint)}
+  .rw.none{color:var(--line-strong)}
+
+  tr.detail td{background:var(--paper);border-bottom:1px solid var(--line2);white-space:normal;
+    font-size:.82rem;color:var(--soft);padding:.7rem 1rem}
+  tr.detail .plan{font-family:var(--mono);font-size:.8rem;color:var(--ink);margin-bottom:.35rem}
+  tr.detail .plan b{color:var(--accent-ink)}
+
+  footer{margin-top:1.6rem;color:var(--faint);font-size:.76rem;border-top:1px solid var(--line);padding-top:.8rem}
+
+  /* Help modal */
+  .backdrop{position:fixed;inset:0;background:rgba(20,18,12,.5);display:none;z-index:40}
+  .modal{position:fixed;top:5%;bottom:5%;left:50%;transform:translateX(-50%);width:min(680px,92vw);z-index:50;display:none;
+    background:var(--raised);border:1px solid var(--line2);border-radius:6px;overflow:auto;padding:1.2rem 1.4rem}
+  .open .backdrop,.open .modal{display:block}
+  .modal h2{font-family:var(--serif);margin:0 0 .3rem;font-size:1.25rem}
+  .modal h3{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);margin:1.1rem 0 .4rem}
+  .modal dl{margin:0}
+  .modal dt{font-weight:650;font-size:.85rem;margin-top:.5rem}
+  .modal dd{margin:0 0 .2rem;font-size:.82rem;color:var(--soft)}
+  .modal .x{position:sticky;float:right;top:0;border:1px solid var(--line2);background:var(--paper);
+    border-radius:4px;padding:.2rem .6rem;cursor:pointer;color:var(--soft);font-size:.8rem}
+  @media (prefers-reduced-motion: no-preference){
+    .modal{animation:pop .14s ease-out}
+    @keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(6px)}to{opacity:1;transform:translateX(-50%)}}
+  }
+
+  /* ---- added: toolbar, tabs, pages, market strip, alerts, sparkline, marks ---- */
+  .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.2rem 0 .6rem}
+  .toolbar .grp{display:flex;gap:.35rem;align-items:center;border:1px solid var(--line2);
+    border-radius:6px;padding:.25rem .45rem;background:var(--raised)}
+  .toolbar label{font-size:.72rem;color:var(--soft)}
+  .toolbar input[type="number"]{width:5.5rem;border:1px solid var(--line2);background:var(--paper);
+    color:var(--ink);border-radius:4px;padding:.15rem .35rem;font-family:var(--mono);font-size:.8rem}
+  .tbtn{border:1px solid var(--line2);background:var(--paper);color:var(--soft);border-radius:4px;
+    padding:.2rem .55rem;cursor:pointer;font-size:.78rem}
+  .tbtn:hover{color:var(--ink)}
+  .tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--line2);margin:.2rem 0 .8rem}
+  .tab{border:none;background:none;color:var(--soft);padding:.45rem .8rem;cursor:pointer;font-size:.85rem;
+    border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--accent-ink);border-bottom-color:var(--accent);font-weight:650}
+  .tab .cnt{font-family:var(--mono);font-size:.72rem;color:var(--faint);margin-left:.3rem}
+  .pagehide{display:none}
+  .mstrip{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;font-size:.8rem;color:var(--soft);
+    border:1px solid var(--line2);background:var(--raised);border-radius:6px;padding:.4rem .7rem;margin:.2rem 0 .5rem}
+  .mstrip b{color:var(--ink)}
+  .mbar{display:inline-block;width:120px;height:8px;border-radius:4px;background:var(--line);overflow:hidden;vertical-align:middle}
+  .mbar i{display:block;height:100%;background:var(--accent)}
+  .alerts{display:flex;flex-wrap:wrap;gap:.4rem;margin:.2rem 0 .6rem}
+  .alert{font-size:.78rem;border-radius:5px;padding:.3rem .6rem;border:1px solid var(--line2)}
+  .alert.near-target,.alert.target{background:var(--good-wash);color:var(--good);border-color:var(--good)}
+  .alert.near-stop,.alert.stopped{background:var(--crit-wash);color:var(--critical);border-color:var(--critical)}
+  .alert.expired{background:var(--chip);color:var(--soft)}
+  .alert b{font-family:var(--mono)}
+  /* sparkline */
+  .spark{width:74px;height:22px;vertical-align:middle}
+  .spark path{fill:none;stroke:var(--accent);stroke-width:1.4}
+  .spark.dn path{stroke:var(--critical)}
+  /* row extras */
+  .star{cursor:pointer;color:var(--line-strong);font-size:1rem;line-height:1;user-select:none}
+  .star.watch{color:var(--warnc)} .star.taken{color:var(--good)}
+  .sec{display:block;font-size:.68rem;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+  .tv{font-size:.66rem;color:var(--accent-ink);border:1px solid var(--line2);border-radius:3px;
+    padding:0 .25rem;margin-left:.35rem;text-decoration:none}
+  .tv:hover{background:var(--wash)}
+  .mv{font-family:var(--mono);font-size:.7rem;margin-left:.3rem}
+  .mv.up{color:var(--good)} .mv.dn{color:var(--critical)}
+  .shares{display:block;font-size:.66rem;color:var(--accent-ink);font-family:var(--mono)}
+  .ledb{font-size:.66rem;border:1px solid var(--line2);border-radius:3px;padding:0 .3rem;margin-left:.3rem;font-family:var(--mono)}
+  .ledb.up{color:var(--good);border-color:var(--good)} .ledb.dn{color:var(--critical);border-color:var(--critical)}
+  /* score-composition bar */
+  .brk{display:flex;height:12px;border-radius:3px;overflow:hidden;margin:.35rem 0;max-width:420px;border:1px solid var(--line2)}
+  .brk i{height:100%}
+  .brk .c0{background:var(--accent)} .brk .c1{background:#6f8fb0} .brk .c2{background:#c7a15a}
+  .brk .c3{background:#7fae7f} .brk .c4{background:#b58bbf}
+  .brklegend{font-size:.68rem;color:var(--soft);display:flex;gap:.7rem;flex-wrap:wrap}
+  .brklegend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:.25rem;vertical-align:baseline}
+  /* generic table for the extra pages */
+  .wtable{width:100%;border-collapse:collapse;font-size:.82rem}
+  .wtable th{text-align:left;color:var(--soft);font-weight:600;border-bottom:1px solid var(--line2);padding:.4rem .5rem;font-size:.75rem}
+  .wtable td{border-bottom:1px solid var(--line);padding:.4rem .5rem;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .wtable td.txt{font-family:inherit}
+  .emptynote{color:var(--faint);font-size:.85rem;padding:1rem 0}
+  body.compact .tile{padding:.5rem .7rem}
+  body.compact td, body.compact th{padding-top:.25rem;padding-bottom:.25rem}
+  body.compact .tile .v{font-size:1.15rem}
+  .colhide-sec .sec, .colhide-spark .spark, .colhide-spark th.cspark, .colhide-spark td.cspark{display:none}
+  @media print{
+    .toolbar,.tabs,.filters,.helpbtn,.backdrop,.modal,.star,.tv{display:none!important}
+    .page,.pagehide{display:block!important}
+    body{color:#000}
+  }
+</style>
+
+<div class="wrap" id="app">
+  <header class="bar">
+    <h1>Odin's Watchlist  -  Daily Triage</h1>
+    <span class="date" id="sheetDate"></span>
+    <span class="spacer"></span>
+    <button class="helpbtn" id="helpBtn" aria-label="Help: what everything means" title="What everything means">?</button>
+  </header>
+
+  <div id="mstrip" class="mstrip"></div>
+  <div id="alerts" class="alerts"></div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-page="shortlist">Shortlist</button>
+    <button class="tab" data-page="watchlist">Watchlist<span class="cnt" id="wcnt"></span></button>
+    <button class="tab" data-page="changes">Changes<span class="cnt" id="ccnt"></span></button>
+    <button class="tab" data-page="ledger">Ledger<span class="cnt" id="lcnt"></span></button>
+  </div>
+
+  <div class="toolbar">
+    <div class="grp"><label for="capital">Capital Rs</label><input type="number" id="capital" min="0" step="1000" placeholder="e.g. 200000">
+      <label for="riskpct">Risk %</label><input type="number" id="riskpct" min="0" step="0.1" placeholder="1"></div>
+    <span style="flex:1"></span>
+    <button class="tbtn" id="exportBtn" title="Download the current view as CSV">Export CSV</button>
+    <button class="tbtn" id="densityBtn" title="Toggle compact rows">Density</button>
+    <button class="tbtn" id="themeBtn" title="Toggle light / dark">Theme</button>
+    <button class="tbtn" id="colBtn" title="Show / hide sparkline &amp; sector">Columns</button>
+  </div>
+
+  <div id="page-shortlist">
+  <div class="tiles" id="tiles"></div>
+
+  <div id="pnl" class="pnl"></div>
+
+  <div class="filters" id="filters">
+    <span class="lbl">Setup</span>
+    <button class="tog" data-setup="" aria-pressed="true">Any</button>
+    <button class="tog" data-setup="sos" aria-pressed="false">Wyckoff SOS</button>
+    <button class="tog" data-setup="lps" aria-pressed="false">Wyckoff LPS</button>
+    <button class="tog" data-setup="ep" aria-pressed="false">Episodic Pivot</button>
+    <span class="sep"></span>
+    <span class="lbl">Leaders</span>
+    <button class="tog" data-k="persist" aria-pressed="false">Persistent</button>
+    <button class="tog" data-k="newlead" aria-pressed="false">New today</button>
+    <button class="tog" data-k="emerg" aria-pressed="false">Emerging</button>
+    <button class="tog" data-k="rwonly" aria-pressed="false">In RIGHTWAY</button>
+    <button class="tog" data-k="rwadmin" aria-pressed="false">Admin call</button>
+    <span class="sep"></span>
+    <span class="lbl">Tier</span>
+    <button class="tog" data-k="tA" aria-pressed="true">A</button>
+    <button class="tog" data-k="tB" aria-pressed="true">B</button>
+    <button class="tog" data-k="tC" aria-pressed="false">C</button>
+    <span class="lbl">Require</span>
+    <button class="tog" data-k="fresh" aria-pressed="false">Fresh breakout</button>
+    <button class="tog" data-k="vol" aria-pressed="false">Volume confirmed</button>
+    <span class="lbl">Hide</span>
+    <button class="tog" data-k="noext" aria-pressed="true">Extended &gt;15%</button>
+    <button class="tog" data-k="nolag" aria-pressed="true">Market laggards</button>
+    <button class="tog" data-k="not2t" aria-pressed="false">T2T (BE/BZ)</button>
+    <select id="minRs" aria-label="Minimum relative strength">
+      <option value="">RS: any</option><option value="5">RS >= +5</option>
+      <option value="15">RS >= +15</option><option value="25">RS >= +25</option>
+    </select>
+    <select id="secf" aria-label="Sector filter"><option value="">Sector: all</option></select>
+    <input type="search" id="q" placeholder="symbol..." aria-label="Search symbol">
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="panel">
+    <div class="cap">Relative strength vs market  -  top 10 shown (pp over 20 sessions) - click a bar to jump to its row</div>
+    <div class="ladder" id="ladder"></div>
+  </div>
+
+  <div class="panel">
+    <div class="cap">Candidates - click a row for reasoning &amp; the trade plan - click column heads to sort</div>
+    <div class="tblwrap">
+      <table id="tbl" aria-label="Swing candidates">
+        <thead><tr>
+          <th title="mark: click once = watching, twice = taken"></th>
+          <th class="num sortable" data-s="rank">#<span class="arr"></span></th>
+          <th>Tier</th><th>Wyckoff</th><th>Stock</th>
+          <th class="num sortable" data-s="score">Score<span class="arr"></span></th>
+          <th class="num sortable" data-s="rs">RS 20d<span class="arr"></span></th>
+          <th class="sortable" data-s="leaderDays">20-day leadership<span class="arr"></span></th>
+          <th class="num sortable" data-s="chg">%Chg<span class="arr"></span></th>
+          <th class="num sortable" data-s="relVol">Vol<span class="arr"></span></th>
+          <th class="cspark">Trend</th>
+          <th class="num">Price</th><th class="num">Target</th><th class="num">Stop</th>
+          <th class="num">R:R</th>
+          <th class="num sortable" data-s="rwMentions">RW<span class="arr"></span></th>
+          <th>Signals</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+  </div><!-- /page-shortlist -->
+
+  <section id="page-watchlist" class="pagehide"></section>
+  <section id="page-changes" class="pagehide"></section>
+  <section id="page-ledger" class="pagehide"></section>
+
+  <footer>
+    Scores and levels are a screening framework, not advice. Backtested expectation for daily top-10:
+    roughly 1 in 6 picks hits target before the stop. Set the stop before you buy.
+    Generated <span id="gen"></span>.
+  </footer>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle" id="modal">
+  <button class="x" id="closeBtn">Close x</button>
+  <h2 id="helpTitle">What everything means</h2>
+  <p style="font-size:.84rem;color:var(--soft)">Every number here comes from the project's own backtest of ~13 months of history. Nothing is a prediction  -  it's a triage aid.</p>
+
+  <h3>The tiles</h3>
+  <dl>
+    <dt>Passing liquidity gate</dt><dd>Stocks on today's sheet after removing penny stocks (&lt;Rs 20), thin traders (&lt;50k shares) and ETFs. The dashboard embeds the top-scored slice of these.</dd>
+    <dt>Tier A / Tier B</dt><dd>Conviction tiers from the six-check list below. A is rare by design.</dd>
+    <dt>Persistent leaders</dt><dd>Stocks that have been market leaders (RS >= +15) on 12+ of the last 20 sheets  -  durable strength. Backtested, this cohort hit target ~24% of the time vs ~15% for freshly-emerged leaders.</dd>
+    <dt>New leaders today</dt><dd>Stocks entering the leader cohort for the first time today  -  fresh ideas, a tiny daily shortlist.</dd>
+    <dt>Median RS, top 10</dt><dd>The middle relative-strength value among the 10 highest-scored picks  -  a quick read on how strong today's crop is.</dd>
+  </dl>
+
+  <h3>Table columns</h3>
+  <dl>
+    <dt># (Rank)</dt><dd>Position by Setup Score. The backtested edge concentrates in roughly the top 10  -  rank matters more than raw score differences.</dd>
+    <dt>Tier</dt><dd>A / B / C conviction chip  -  see "The six checks" below.</dd>
+    <dt>Wyckoff</dt><dd>The stock's inferred Wyckoff phase  -  <b>SOS</b>, <b>LPS</b>, <b>Base</b> or "-"  -  read from which screeners it triggered. See "Wyckoff phases &amp; the Setup filter" below.</dd>
+    <dt>Score</dt><dd>The 0-100 Setup Score: relative strength (35 pts max), chart patterns (30), screener agreement &amp; freshness (15), day's move &amp; volume (10), institutional buying (10).</dd>
+    <dt>RS 20d</dt><dd>Percentage points the stock beat the market (NIFTYBEES) over the last 20 sessions. The single strongest tested signal  -  out-of-sample its top picks won ~3x more often than random. Higher is better; >= +15 is "strong".</dd>
+    <dt>20-day leadership</dt><dd>A strip of the last 20 sheets  -  each bar is one sheet, <b>filled (amber)</b> = the stock was a market leader (RS >= +15) that day, faint = present but not leading, empty = absent. The <b>"N/20"</b> counts leader-days. A solid amber block = a durable leader; a sparse or just-starting strip = fresh or sporadic. This is the persistence signal, validated as a real conviction edge (see "Persistence &amp; leadership" below).</dd>
+    <dt>%Chg</dt><dd>Today's move. +1..8% is the healthy zone; above +15% is chase territory (flagged "ext").</dd>
+    <dt>Vol</dt><dd>Today's volume vs. THIS stock's own 20-day average  -  e.g. 2.4x means it traded 2.4 times its normal volume. Dim = below 1x (weak  -  a breakout on light volume is prone to fail); bold amber = 3x+ (a real volume surge). This is different from the "vol" badge, which compares against OTHER stocks today; this Vol figure compares the stock against itself, and is the one to check when judging whether a breakout has real force behind it.</dd>
+    <dt>Target / Stop</dt><dd>The suggested exit prices, sized to this stock's own volatility (ATR): stop ~ 1.5xATR clamped to -5..-10%, target = 5x the stop distance (capped +40%). The backtest found the tight stop  -  not the target  -  is what makes the edge profitable.</dd>
+    <dt>R:R</dt><dd>Reward-to-risk of that plan (target % / stop %). Typically 4-5.</dd>
+    <dt>RW</dt><dd>How many times your RIGHTWAY Telegram group mentioned this stock in the last 45 days (blank = not in recent buzz). A "^" = the ADMIN (broadcast channel) has called it at some point  -  hover to see when. A "*" in bold amber = the admin flagged it important (POSITIONAL / MULTIBAGGER / LONG TERM / FOCUS) <i>recently</i> (within ~4 months). Expand the row to see the admin's target and the date it was called. See "RIGHTWAY group mentions" below  -  and read the caveat.</dd>
+    <dt>Signals</dt><dd>Compact badges  -  see next section.</dd>
+  </dl>
+
+  <h3>Signal badges</h3>
+  <dl>
+    <dt>NEW*</dt><dd>Emerged as a market leader (RS >= +15) for the first time today  -  a fresh idea worth a look.</dd>
+    <dt>EP^</dt><dd>Episodic Pivot  -  gapped up >= 4% on >= 3x normal volume (a catalyst / news move). Hover for the exact gap and volume. See the Setup filter section.</dd>
+    <dt>EMRG^</dt><dd>Emerging  -  a volume thrust (>= 3x normal) while relative strength is rising but not yet extreme (0 to +25). An EARLY, lower-confidence entry  -  catching the move before it's an obvious leader. See "Emerging" below.</dd>
+    <dt>fresh</dt><dd>A breakout-type screener (52-week breakout, resistance break, VCP, Darvas...) triggered today. Fresh beats stale.</dd>
+    <dt>vol</dt><dd>Today's volume was elevated or top-decile compared to OTHER stocks today (cross-sectional). For the stock-vs-its-own-normal figure, use the Vol column instead  -  that's the more useful one for judging a breakout.</dd>
+    <dt>inst</dt><dd>Institutions bought more than they sold today (bulk/block deals). Rare but meaningful.</dd>
+    <dt>ext</dt><dd>Caution: already up &gt;15% today  -  you'd be chasing.</dd>
+    <dt>lag</dt><dd>Caution: negative relative strength  -  the market is beating this stock.</dd>
+    <dt>T2T</dt><dd>Caution: BE/BZ settlement series (delivery-only Trade-to-Trade; BZ adds surveillance). Tradeable but jumpier, thinner, and their backtest stats flatter reality.</dd>
+  </dl>
+
+  <h3>The six checks behind the tier</h3>
+  <dl>
+    <dt>Checklist</dt><dd>1) RS >= +15 &nbsp;2) fresh breakout today &nbsp;3) volume confirmed &nbsp;4) healthy move (+1..8%, not extended) &nbsp;5) not lagging the market &nbsp;6) mainstream EQ series.</dd>
+    <dt>Tier A</dt><dd>5+ checks including strong RS AND a fresh breakout  -  today's highest-conviction setups.</dd>
+    <dt>Tier B</dt><dd>3-4 checks  -  worth a look, one or two things missing.</dd>
+    <dt>Tier C</dt><dd>0-2 checks  -  on the sheet, but weak by this playbook. Off by default in the Tier filter to keep the list short.</dd>
+  </dl>
+
+  <h3>Wyckoff phases &amp; the Setup filter</h3>
+  <p style="font-size:.82rem;color:var(--soft)">This tool finds stocks already leading and breaking out, which maps onto the <b>later</b> half of a Wyckoff cycle (Phases D-E: the breakout and markup)  -  not the early accumulation Spring. Each stock's phase is inferred from which screeners it fired:</p>
+  <dl>
+    <dt>SOS  -  Sign of Strength</dt><dd>A range/resistance breakout (Sideways-breakout, Range-breakout-with-volume, Master-resistance, Darvas, 52-week) firing <b>today</b>, on volume, while leading the market and not yet extended. Wyckoff's "jumping the creek"  -  the actionable breakout entry.</dd>
+    <dt>LPS  -  Last Point of Support</dt><dd>A leader (positive RS) resting quietly at support (Major-support or the 0.7-0.88 Fib zone) on a flat/down day  -  i.e. a low-volume backup after a prior breakout. The safer, lower-chase Wyckoff entry.</dd>
+    <dt>Base  -  cause building</dt><dd>Volatility contracting (Daily-contraction or VCP) with no breakout yet  -  the range is still forming. A watch-list, not an entry.</dd>
+    <dt>Setup filter: Any / Wyckoff SOS / Wyckoff LPS</dt><dd>One click. <b>SOS</b> also sets the companion filters (require fresh + volume, hide extended/laggards, RS >= +5). <b>LPS</b> reconfigures them for a quiet backup (fresh &amp; volume OFF, RS >= +5, shows Tier C too, since a resting stock may score lower). You can still fine-tune afterward.</dd>
+    <dt>The manual step Wyckoff still needs</dt><dd>No filter confirms a phase  -  on the chart, verify a real prior trading range (the "cause"), light volume on pullbacks/Spring vs. expanding volume on the breakout, and that the pullback holds above the breakout level.</dd>
+  </dl>
+
+  <h3>Episodic Pivot (the Setup filter's 4th option)</h3>
+  <p style="font-size:.82rem;color:var(--soft)">A stockbee-style catalyst move: the stock <b>gaps up >= 4% on >= 3x normal volume</b>  -  usually earnings or news igniting it out of a quiet base. Unlike relative strength (which measures "is it already strong"), this measures "did something just happen today," so it's genuinely different information. We tested it: standalone, EP names hit +20% about 2.5x more often than random; and within the RS-top-10, the ones that also just had an EP hit target ~24% vs ~17% for the rest. Clicking the preset shows gap-ups on volume and  -  unlike the other lenses  -  leaves "Extended &gt;15%" OFF, because a big gap is the whole point.</p>
+  <dl>
+    <dt>Follow-through (why some gaps don't get the badge)</dt><dd>We backtested a refinement: an EP that <b>closes in the top half of its day's range</b> (it HELD the gap) hit target ~19%, versus only ~12% for one that <b>faded to the bottom half</b>  -  a +7pp edge. So the EP^ badge now fires only for gaps that held; a gap that faded is not flagged as actionable. Hold quality is the tell that the catalyst has real buyers behind it.</dd>
+    <dt>Reading it</dt><dd>Best when the gap comes off a tight base (check the chart) rather than after the stock has already run for weeks. A gap on the 1st day of a move &gt; a gap on day 20.</dd>
+  </dl>
+
+  <h3>Persistence &amp; leadership (the 20-day strip)</h3>
+  <p style="font-size:.82rem;color:var(--soft)">A single day tells you a stock is strong <i>today</i>; the strip tells you whether it has <i>stayed</i> strong. We tested this: among the daily top-10 by relative strength, the ones that had led on 15+ of the prior 20 sheets went on to hit target <b>~24%</b> of the time, versus <b>~15%</b> for names that had only just emerged. Persistence is a real, second-order conviction signal  -  so it's shown as context and as cohort filters, but deliberately NOT folded into the score (relative strength already ranks these names to the top; persistence is how you choose <i>between</i> them).</p>
+  <dl>
+    <dt>Persistent leader</dt><dd>Led (RS >= +15) on 12+ of the last 20 sheets  -  a durable trend you can lean on. The higher-win cohort.</dd>
+    <dt>New leader (NEW*)</dt><dd>First day in the leader cohort  -  earlier, less confirmed, but a fresh idea before it's obvious.</dd>
+    <dt>Reading it with price</dt><dd>Persistence is only bullish alongside strength. A stock that's persistently on the list but NOT leading (a faint, breakout-less strip) is dead money, not a base  -  the strip makes that visible.</dd>
+  </dl>
+
+  <h3>Emerging (catching a move early)</h3>
+  <p style="font-size:.82rem;color:var(--soft)">The persistence cohorts catch stocks that are ALREADY strong. Emerging tries to catch them a step earlier: a stock printing a <b>volume thrust (3x+ its own normal)</b> while its relative strength is <b>rising but still modest (0 to +25)</b>  -  the moment a quiet stock wakes up, before it's an obvious leader.</p>
+  <dl>
+    <dt>What we found when we tested it</dt><dd>Honestly: catching stocks BEFORE strength shows up (buying the quiet pullback) is NO better than random  -  you'd be front-running the only signal that works. But catching the thrust itself, with RS accelerating, hits target about <b>1.5x the base rate</b>. That's real, but roughly HALF the edge of a confirmed leader (~3x). So Emerging is an earlier, lower-confidence entry, not a better one.</dd>
+    <dt>How to use it</dt><dd>A watch-and-size tool: earlier means more upside if right, but more failures, so size smaller and keep the stop tight. It's the cohort STALLION would have appeared in on its first thrust day, well before the obvious breakout.</dd>
+  </dl>
+
+  <h3>RIGHTWAY group mentions</h3>
+  <p style="font-size:.82rem;color:var(--soft)">Cross-references your dashboard picks against what your RIGHTWAY Telegram channel has been talking about (last 45 days). The value is CONFLUENCE: when the tool independently flags a strong setup AND the group is also on it, that's a second, unrelated vote. The RW column and the "In RIGHTWAY" filter show it.</p>
+  <dl>
+    <dt>Admin vs. members (the "^" and "*")</dt><dd>Most mentions are member chatter (noise). A <b>"^"</b> means the ADMIN  -  the broadcast channel that posts the actual calls  -  called it (hover for the date; many are old). A <b>"*"</b> means the admin flagged it important with a conviction tag (POSITIONAL PICK / MULTIBAGGER / LONG TERM / FOCUS) <i>recently</i>. The admin call carries more weight than random member buzz  -  use the "Admin call" filter to isolate every stock the admin has ever called (with a target or conviction tag).</dd>
+    <dt>The admin's target</dt><dd>When the admin posted a target (e.g. "TARGET-260 AND 300+"), expand the row to see it. A <b>recent</b> call shows "admin target Rs X (+Y% from here)" or "(already reached)"; an <b>old</b> call (&gt;6 months) shows "admin's old target Rs X" with the date  -  because the entry it was based on is long gone, the live upside math would be misleading. Note: most admin calls in this data are 9-24 months old, so treat them as historical context, not live targets. That's the ADMIN'S stated goal, not the tool's  -  the tool's own volatility-based target/stop are still the ones with a backtest behind them.</dd>
+    <dt>Read it honestly</dt><dd>This channel is heavily promotional and often posts winners AFTER they've already moved  -  so a mention means "they're discussing it," NOT that it's a good buy. About 43 of 60 dashboard names get mentioned, so a plain mention isn't selective; the admin "^"/"*" markers are far more meaningful than raw count. A proper backtest of whether the admin's calls actually PRECEDE moves is the planned next step.</dd>
+    <dt>How to use it</dt><dd>Best as a confirming nudge on a stock the tool already likes  -  especially "strong setup + fresh ADMIN call"  -  never as a reason to buy something the tool doesn't rate.</dd>
+  </dl>
+
+  <h3>Filters</h3>
+  <dl>
+    <dt>Setup (Any / Wyckoff SOS / Wyckoff LPS / Episodic Pivot)</dt><dd>The setup lens  -  Wyckoff sections above, EP section just above.</dd>
+    <dt>In RIGHTWAY / Admin call</dt><dd>"In RIGHTWAY" = mentioned by anyone in the group (last 45d). "Admin call" = the tighter, higher-value set the admin channel actually called.</dd>
+    <dt>Leaders: Persistent / New today / Emerging</dt><dd>"Persistent" = the durable-leader set; "New today" = fresh entrants to leadership; "Emerging" = the early volume-thrust cohort (see sections above).</dd>
+    <dt>Tier A/B/C</dt><dd>Show or hide each conviction tier. C is off by default to keep the list short.</dd>
+    <dt>Fresh breakout / Volume confirmed</dt><dd>Require that badge  -  the "only show me the textbook setups" switches.</dd>
+    <dt>Hide: Extended &gt;15%</dt><dd>Drops same-day spikes (on by default  -  chase risk).</dd>
+    <dt>Hide: Market laggards</dt><dd>Drops negative-RS names (on by default  -  the evidence says buy leaders).</dd>
+    <dt>Hide: T2T (BE/BZ)</dt><dd>Drops Trade-to-Trade series names entirely (off by default; they're flagged either way).</dd>
+    <dt>RS >= ...</dt><dd>Minimum relative-strength floor.</dd>
+  </dl>
+
+  <h3>How to use this page (60 seconds)</h3>
+  <dl>
+    <dt>1.</dt><dd>Scan the tiles  -  is today a strong crop or a weak one?</dd>
+    <dt>2.</dt><dd>Look at Tier A first; expand rows to read the reasoning and the plan.</dd>
+    <dt>3.</dt><dd>For the 2-4 you like, open the actual chart and judge the entry vs support/resistance yourself.</dd>
+    <dt>4.</dt><dd>If you trade one: use the printed stop, exactly. Expect ~1 in 6 winners; size so a losing streak is boring.</dd>
+  </dl>
+
+  <h3>Honest caveats</h3>
+  <dl>
+    <dt>Not predictions</dt><dd>Backtested on one ~13-month window, daily closes only, no brokerage/slippage. BE/BZ names test better than you'd realistically capture. Trust direction, not decimals.</dd>
+  </dl>
+</div>
+
+<script>
+const DATA = [{"rank": 1, "sym": "KABRAEXTRU", "name": "Kabra Extrusion Technik Limited", "sector": "Industrial Machinery", "score": 95.0, "rs": 55.3, "chg": 7.43, "price": 404.8, "target": 566.72, "targetPct": 40.0, "stop": 370.09, "stopPct": 8.6, "rr": 4.7, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "Premium_3_for_Momentum, RT_Range_Breakout_with_Volume", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 16, "streak": 16, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 4.0, "relVol": 2.4, "closePos": 0.9, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_3_for_Momentum, RT_Range_Breakout_with_Volume; healthy move today (+7.4%); strong relative strength vs. market (+55.3pp/20d)", "spark": [269.61, 265.0, 278.45, 272.95, 294.9, 292.95, 280.45, 295.65, 294.35, 315.65, 317.75, 324.05, 330.25, 330.7, 351.65, 359.3, 341.0, 351.05, 376.8, 404.8], "isNew": false, "rankDelta": 0, "scoreDelta": 0}, {"rank": 2, "sym": "TBZ", "name": "Tribhovandas Bhimji Zaveri Limited", "sector": "Precious Metals, Jewellery & Watches", "score": 95.0, "rs": 47.6, "chg": 8.24, "price": 280.22, "target": 392.31, "targetPct": 40.0, "stop": 252.2, "stopPct": 10.0, "rr": 4.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "Premium_7.1, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 14, "streak": 14, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.6, "relVol": 0.8, "closePos": 0.88, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1, RSI_in_all_TF_65, RT_COP_Strategy; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT; strong move, some chase risk (+8.2%); elevated volume today; strong relative strength vs. market (+47.6pp/20d)", "spark": [195.12, 191.27, 191.7, 192.63, 188.24, 198.71, 201.7, 231.55, 228.34, 225.11, 259.97, 262.09, 256.03, 258.13, 255.62, 259.73, 264.37, 266.67, 258.89, 280.22], "isNew": false, "rankDelta": 16, "scoreDelta": 14}, {"rank": 3, "sym": "NILKAMAL", "name": "Nilkamal Limited", "sector": "Plastic Products", "score": 94.0, "rs": 39.8, "chg": 5.91, "price": 1775.2, "target": 2422.5, "targetPct": 36.5, "stop": 1645.74, "stopPct": 7.3, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2], "leaderDays": 5, "streak": 5, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 2.4, "relVol": 0.6, "closePos": 0.81, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT; healthy move today (+5.9%); strong relative strength vs. market (+39.8pp/20d)", "spark": [1259.2, 1261.6, 1293.8, 1286.1, 1298.2, 1294.8, 1293.9, 1310.3, 1303.5, 1350.1, 1332.5, 1365.5, 1341.1, 1473.5, 1476.4, 1557.0, 1604.3, 1646.5, 1676.1, 1775.2], "isNew": false, "rankDelta": 33, "scoreDelta": 19}, {"rank": 4, "sym": "TATVA", "name": "Tatva Chintan Pharma Chem Ltd", "sector": "Specialty Chemicals", "score": 93.0, "rs": 50.0, "chg": 4.51, "price": 1800.1, "target": 2520.14, "targetPct": 40.0, "stop": 1652.53, "stopPct": 8.2, "rr": 4.9, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 11, "streak": 11, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.6, "relVol": 0.7, "closePos": 0.72, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT; healthy move today (+4.5%); strong relative strength vs. market (+50.0pp/20d)", "spark": [1194.3, 1188.7, 1267.6, 1249.6, 1255.4, 1240.3, 1182.0, 1239.2, 1326.5, 1391.4, 1412.1, 1385.4, 1418.2, 1428.1, 1713.7, 1685.0, 1664.9, 1700.8, 1722.4, 1800.1], "isNew": false, "rankDelta": 23, "scoreDelta": 15}, {"rank": 5, "sym": "MENONBE", "name": "Menon Bearings Limited", "sector": "Auto Parts", "score": 91.0, "rs": 33.8, "chg": 1.51, "price": 217.0, "target": 303.8, "targetPct": 40.0, "stop": 199.07, "stopPct": 8.3, "rr": 4.8, "basis": "ATR", "series": "BE", "tier": "B", "checks": 4, "fresh": true, "freshList": "DARVAS, RT_SHORT_TO_MID_RANGE_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": true, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2], "leaderDays": 6, "streak": 6, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.6, "relVol": 0.9, "closePos": 0.62, "patterns": "DARVAS, RT_SHORT_TO_MID_RANGE_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_SHORT_TO_MID_RANGE_BREAKOUT, VCP, Premium_7.1, RSI_in_all_TF_65; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, RT_SHORT_TO_MID_RANGE_BREAKOUT; healthy move today (+1.5%); strong relative strength vs. market (+33.8pp/20d)", "spark": [165.58, 161.51, 161.36, 158.77, 166.7, 170.15, 165.68, 173.88, 171.53, 179.6, 178.67, 181.12, 190.17, 199.67, 209.65, 220.13, 207.68, 216.51, 213.77, 217.46], "isNew": false, "rankDelta": 60, "scoreDelta": 23}, {"rank": 6, "sym": "AEGISVOPAK", "name": "Aegis Vopak Terminals Ltd", "sector": "Oil & Gas - Storage & Transportation", "score": 89.0, "rs": 29.9, "chg": 3.71, "price": 303.49, "target": 424.89, "targetPct": 40.0, "stop": 277.34, "stopPct": 8.6, "rr": 4.6, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 6, "fresh": true, "freshList": "Premium_7.1, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2], "leaderDays": 17, "streak": 5, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.7, "relVol": 0.9, "closePos": 0.87, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT; healthy move today (+3.7%); elevated volume today; strong relative strength vs. market (+29.9pp/20d)", "spark": [234.69, 235.5, 234.73, 257.43, 279.97, 294.32, 276.61, 275.53, 283.18, 303.3, 280.64, 281.95, 269.26, 271.24, 281.02, 288.45, 295.66, 294.82, 292.64, 303.49], "isNew": false, "rankDelta": 114, "scoreDelta": 30}, {"rank": 7, "sym": "UNIVASTU", "name": "Univastu India Ltd", "sector": "Construction & Engineering", "score": 89.0, "rs": 37.6, "chg": 1.8, "price": 125.9, "target": 176.26, "targetPct": 40.0, "stop": 115.44, "stopPct": 8.3, "rr": 4.8, "basis": "ATR", "series": "BE", "tier": "B", "checks": 4, "fresh": true, "freshList": "RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": true, "wSOS": false, "wLPS": false, "phase": "", "strip": [2, 1, 1, 1, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 15, "streak": 13, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.1, "relVol": 0.6, "closePos": 0.38, "patterns": "DARVAS, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1, RSI_in_all_TF_65; fresh trigger today: RT_SIDEWAY_BREAKOUT; healthy move today (+1.8%); strong relative strength vs. market (+37.6pp/20d)", "spark": [91.88, 87.73, 87.76, 88.41, 92.83, 97.07, 92.56, 94.92, 99.66, 104.49, 108.36, 112.88, 115.32, 116.23, 117.17, 118.32, 119.53, 120.72, 123.68, 124.88], "isNew": false, "rankDelta": 4, "scoreDelta": 5}, {"rank": 8, "sym": "PNGJL", "name": "P N Gadgil Jewellers Ltd", "sector": "Precious Metals, Jewellery & Watches", "score": 89.0, "rs": 29.7, "chg": 6.5, "price": 689.05, "target": 879.95, "targetPct": 27.7, "stop": 650.87, "stopPct": 5.5, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 6, "fresh": true, "freshList": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2], "leaderDays": 4, "streak": 4, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.2, "relVol": 4.3, "closePos": 0.77, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; healthy move today (+6.5%); elevated volume today; strong relative strength vs. market (+29.7pp/20d)", "spark": [536.1, 539.9, 560.25, 569.35, 579.75, 569.7, 573.5, 581.3, 588.05, 598.35, 593.3, 595.45, 595.05, 591.75, 590.1, 600.75, 636.6, 650.6, 647.0, 689.05], "isNew": false, "rankDelta": 107, "scoreDelta": 29}, {"rank": 9, "sym": "KCPSUGIND", "name": "Kcp Sugar And Industries Corporation Limited", "sector": "Sugar", "score": 88.0, "rs": 44.8, "chg": 15.19, "price": 32.08, "target": 43.13, "targetPct": 34.5, "stop": 29.87, "stopPct": 6.9, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "RT-52W_AWAY", "volOk": true, "inst": false, "healthy": false, "extended": true, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 2], "leaderDays": 3, "streak": 2, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": false, "gap": 3.1, "relVol": 4.4, "closePos": 0.84, "patterns": "RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "reasoning": "patterns: RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); CAUTION extended (+15.2%); elevated volume today; strong relative strength vs. market (+44.8pp/20d)", "spark": [22.07, 21.95, 22.0, 21.96, 21.84, 21.87, 21.71, 21.87, 21.96, 21.97, 21.64, 21.7, 21.75, 21.63, 21.71, 25.81, 25.06, 24.19, 27.85, 32.08], "isNew": false, "rankDelta": 3, "scoreDelta": 4}, {"rank": 10, "sym": "SENCO", "name": "Senco Gold Ltd", "sector": "Precious Metals, Jewellery & Watches", "score": 87.0, "rs": 27.2, "chg": 9.17, "price": 417.95, "target": 567.15, "targetPct": 35.7, "stop": 388.11, "stopPct": 7.1, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "Premium_3_for_Momentum, Premium_7.1, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2], "leaderDays": 4, "streak": 4, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.0, "relVol": 6.0, "closePos": 0.72, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_3_for_Momentum, Premium_7.1, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT; strong move, some chase risk (+9.2%); top-decile volume today; strong relative strength vs. market (+27.2pp/20d)", "spark": [330.2, 325.85, 331.8, 326.05, 326.5, 327.25, 331.75, 348.65, 362.15, 381.0, 377.85, 373.2, 365.5, 364.55, 366.0, 377.8, 391.65, 386.25, 382.85, 417.95], "isNew": false, "rankDelta": 145, "scoreDelta": 35}, {"rank": 11, "sym": "TIRUPATIFL", "name": "Tirupati Forge Ltd", "sector": "Auto Parts", "score": 86.0, "rs": 29.4, "chg": 2.77, "price": 75.65, "target": 105.91, "targetPct": 40.0, "stop": 68.09, "stopPct": 10.0, "rr": 4.0, "basis": "ATR", "series": "BE", "tier": "B", "checks": 4, "fresh": true, "freshList": "DARVAS, Premium_7.1", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": true, "wSOS": false, "wLPS": false, "phase": "", "strip": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 20, "streak": 20, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": -0.1, "relVol": 0.3, "closePos": 0.76, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_7.1; healthy move today (+2.8%); strong relative strength vs. market (+29.4pp/20d)", "spark": [64.07, 63.98, 69.52, 66.82, 71.79, 70.22, 66.06, 67.09, 68.1, 69.07, 68.39, 68.99, 66.93, 68.17, 69.96, 76.95, 81.55, 77.48, 73.61, 75.31], "isNew": false, "rankDelta": 152, "scoreDelta": 35}, {"rank": 12, "sym": "ORIENTLTD", "name": "Orient Press Limited", "sector": "Packaging", "score": 86.0, "rs": 37.2, "chg": 10.25, "price": 98.44, "target": 135.15, "targetPct": 37.3, "stop": 91.1, "stopPct": 7.5, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "DARVAS, RT_52W_BREAKOUT", "volOk": false, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 2, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2], "leaderDays": 5, "streak": 2, "persistent": false, "newLeader": false, "ep": true, "epFade": false, "emerging": false, "gap": 10.3, "relVol": 16.0, "closePos": 0.61, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Range_Breakout_with_Volume", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Range_Breakout_with_Volume, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, RT_52W_BREAKOUT; strong move, some chase risk (+10.2%); CAUTION bulk/block SELL > BUY (83,154 vs 72,529); strong relative strength vs. market (+37.2pp/20d)", "spark": [68.67, 70.45, 69.02, 69.0, 69.0, 67.92, 67.03, 67.82, 71.02, 73.74, 71.46, 71.12, 72.59, 71.8, 70.46, 70.5, 71.45, 74.41, 89.29, 98.44], "isNew": false, "rankDelta": 17, "scoreDelta": 8}, {"rank": 13, "sym": "PYRAMID", "name": "Pyramid Technoplast Ltd", "sector": "Plastic Products", "score": 85.0, "rs": 17.7, "chg": 19.34, "price": 195.96, "target": 253.89, "targetPct": 29.6, "stop": 184.37, "stopPct": 5.9, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "DARVAS, Premium_3_for_Momentum, RT_52W_BREAKOUT, RT_COP_DAILY, RT_COP_Strategy, RT_MULTIYEAR_RETEST, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT, VCP", "volOk": true, "inst": true, "healthy": false, "extended": true, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2], "leaderDays": 1, "streak": 1, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": true, "gap": 0.5, "relVol": 17.9, "closePos": 0.97, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1, RT_COP_DAILY, RT_COP_Strategy, RT_MULTIYEAR_RETEST; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_3_for_Momentum, RT_52W_BREAKOUT, RT_COP_DAILY, RT_COP_Strategy, RT_MULTIYEAR_RETEST, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT, VCP; CAUTION extended (+19.3%); top-decile volume today; bulk/block BUY > SELL (742,196 vs 692,196); strong relative strength vs. market (+17.7pp/20d)", "spark": [172.06, 171.25, 169.1, 171.42, 167.13, 162.34, 162.38, 167.39, 165.47, 163.53, 164.62, 165.04, 166.71, 160.93, 162.71, 163.0, 161.22, 162.92, 164.21, 195.96], "isNew": true, "rankDelta": null, "scoreDelta": null}, {"rank": 14, "sym": "SKYGOLD", "name": "Sky Gold Ltd", "sector": "Precious Metals, Jewellery & Watches", "score": 85.0, "rs": 30.6, "chg": 2.75, "price": 671.65, "target": 902.62, "targetPct": 34.4, "stop": 625.46, "stopPct": 6.9, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "GEM_SWING", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 13, "streak": 13, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.1, "relVol": 0.7, "closePos": 0.6, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, RSI_in_all_TF_65; strengthening (+screeners vs yesterday); healthy move today (+2.8%); strong relative strength vs. market (+30.6pp/20d)", "spark": [532.55, 528.9, 568.85, 560.0, 555.6, 574.65, 585.5, 623.3, 623.85, 623.2, 618.0, 629.8, 622.45, 621.3, 658.35, 655.8, 671.25, 649.2, 653.7, 671.65], "isNew": false, "rankDelta": 25, "scoreDelta": 11}, {"rank": 15, "sym": "LXCHEM", "name": "Laxmi Organic Industries Ltd", "sector": "Specialty Chemicals", "score": 84.0, "rs": 24.7, "chg": 5.91, "price": 193.05, "target": 259.46, "targetPct": 34.4, "stop": 179.77, "stopPct": 6.9, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 6, "fresh": true, "freshList": "Premium_3_for_Momentum, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2], "leaderDays": 3, "streak": 3, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": false, "gap": 4.8, "relVol": 2.2, "closePos": 0.89, "patterns": "RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_3_for_Momentum, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; healthy move today (+5.9%); elevated volume today; strong relative strength vs. market (+24.7pp/20d)", "spark": [154.97, 155.44, 162.51, 161.48, 157.79, 155.68, 150.59, 153.14, 155.51, 164.2, 166.73, 168.82, 170.96, 171.76, 176.55, 181.53, 174.52, 182.98, 182.28, 193.05], "isNew": false, "rankDelta": 275, "scoreDelta": 43}, {"rank": 16, "sym": "FAIRCHEMOR", "name": "Fairchem Organics Ltd", "sector": "Specialty Chemicals", "score": 83.0, "rs": 24.8, "chg": 5.0, "price": 806.5, "target": 1104.09, "targetPct": 36.9, "stop": 746.98, "stopPct": 7.4, "rr": 5.0, "basis": "ATR", "series": "BE", "tier": "B", "checks": 4, "fresh": true, "freshList": "Premium_3_for_Momentum, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": true, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2, 1, 2, 1, 1, 1, 1, 2, 2, 2], "leaderDays": 12, "streak": 3, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": true, "gap": 0.0, "relVol": 3.1, "closePos": 1.0, "patterns": "RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, VCP", "reasoning": "patterns: RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_3_for_Momentum, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume; healthy move today (+5.0%); strong relative strength vs. market (+24.8pp/20d)", "spark": [670.25, 731.9, 750.3, 728.75, 712.55, 713.2, 689.4, 721.3, 700.5, 692.1, 707.65, 677.75, 702.05, 704.2, 700.7, 702.2, 736.8, 772.9, 768.1, 806.5], "isNew": true, "rankDelta": null, "scoreDelta": null}, {"rank": 17, "sym": "ASAHISONG", "name": "Asahi Songwon Colors Limited", "sector": "Specialty Chemicals", "score": 83.0, "rs": 35.7, "chg": 2.07, "price": 339.85, "target": 475.79, "targetPct": 40.0, "stop": 308.93, "stopPct": 9.1, "rr": 4.4, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "RT_Daily_Contraction", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": true, "phase": "LPS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2], "leaderDays": 4, "streak": 4, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 2.7, "relVol": 5.9, "closePos": 0.27, "patterns": "RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "reasoning": "patterns: RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, Premium_3_for_Momentum; healthy move today (+2.1%); strong relative strength vs. market (+35.7pp/20d)", "spark": [251.44, 250.9, 253.15, 253.05, 256.1, 257.1, 261.8, 275.85, 269.65, 283.95, 284.55, 275.35, 272.2, 266.5, 270.9, 268.75, 299.4, 318.9, 332.95, 339.85], "isNew": false, "rankDelta": 20, "scoreDelta": 9}, {"rank": 18, "sym": "OAL", "name": "Oriental Aromatics Ltd", "sector": "Specialty Chemicals", "score": 83.0, "rs": 24.5, "chg": 5.62, "price": 393.95, "target": 551.53, "targetPct": 40.0, "stop": 360.54, "stopPct": 8.5, "rr": 4.7, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "DARVAS, Premium_3_for_Momentum, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2], "leaderDays": 2, "streak": 2, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": false, "gap": -1.9, "relVol": 2.5, "closePos": 0.92, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_3_for_Momentum, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; healthy move today (+5.6%); strong relative strength vs. market (+24.5pp/20d)", "spark": [307.9, 313.65, 309.5, 315.15, 315.1, 318.75, 338.85, 347.75, 345.15, 355.2, 352.65, 366.55, 357.35, 358.75, 350.85, 348.05, 348.6, 352.25, 373.0, 392.45], "isNew": true, "rankDelta": null, "scoreDelta": null}, {"rank": 19, "sym": "THANGAMAYL", "name": "Thangamayil Jewellery Limited", "sector": "Precious Metals, Jewellery & Watches", "score": 83.0, "rs": 23.9, "chg": 5.84, "price": 7309.5, "target": 10100.04, "targetPct": 38.2, "stop": 6751.39, "stopPct": 7.6, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [2, 2, 1, 1, 1, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2], "leaderDays": 14, "streak": 5, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.3, "relVol": 1.1, "closePos": 0.92, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1, RSI_in_all_TF_65, RT_RSI_85; strengthening (+screeners vs yesterday); fresh trigger today: RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT; healthy move today (+5.8%); strong relative strength vs. market (+23.9pp/20d)", "spark": [6398.2, 5945.5, 6315.5, 6159.5, 6283.0, 6373.0, 6806.0, 6598.5, 6540.5, 6233.0, 6459.0, 6617.0, 6377.0, 6436.0, 6385.5, 6453.0, 6476.0, 6871.0, 6906.5, 7309.5], "isNew": false, "rankDelta": 68, "scoreDelta": 19}, {"rank": 20, "sym": "E2E", "name": "E2E Networks Ltd", "sector": "Software Services", "score": 82.0, "rs": 36.7, "chg": 4.99, "price": 542.5, "target": 719.61, "targetPct": 32.6, "stop": 507.08, "stopPct": 6.5, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "nan", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2], "leaderDays": 3, "streak": 3, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": false, "gap": 3.3, "relVol": 0.3, "closePos": 1.0, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, Premium_3_for_Momentum, Premium_7.1, RSI_in_all_TF_65; weakening (-screeners vs yesterday); healthy move today (+5.0%); strong relative strength vs. market (+36.7pp/20d)", "spark": [396.3, 402.7, 388.2, 382.0, 381.7, 371.3, 378.8, 397.7, 397.9, 386.95, 394.6, 410.9, 423.5, 404.95, 425.15, 446.4, 468.7, 492.1, 516.7, 542.5], "isNew": false, "rankDelta": -11, "scoreDelta": -4}, {"rank": 21, "sym": "PICCADIL", "name": "Piccadily Agro Industries Ltd", "sector": "Alcoholic Beverages", "score": 82.0, "rs": 33.5, "chg": 2.28, "price": 754.0, "target": 972.22, "targetPct": 28.9, "stop": 710.36, "stopPct": 5.8, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "GEM_SWING", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 11, "streak": 11, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.2, "relVol": 0.7, "closePos": 0.55, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, RT_COP_Strategy; strengthening (+screeners vs yesterday); healthy move today (+2.3%); strong relative strength vs. market (+33.5pp/20d)", "spark": [565.75, 574.05, 624.2, 647.35, 669.55, 659.45, 643.55, 649.45, 671.8, 718.9, 716.55, 727.65, 740.55, 729.55, 751.6, 753.95, 745.0, 736.75, 737.2, 757.05], "isNew": false, "rankDelta": 78, "scoreDelta": 20}, {"rank": 22, "sym": "DIACABS", "name": "Diamond Power Infrastructure Ltd", "sector": "Electrical Components & Equipments", "score": 82.0, "rs": 46.8, "chg": 4.07, "price": 307.17, "target": 430.04, "targetPct": 40.0, "stop": 281.14, "stopPct": 8.5, "rr": 4.7, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": false, "freshList": "nan", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2], "leaderDays": 7, "streak": 6, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 5.0, "relVol": 0.9, "closePos": 0.77, "patterns": "DARVAS, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1, RSI_in_all_TF_65; weakening (-screeners vs yesterday); healthy move today (+4.1%); top-decile volume today; strong relative strength vs. market (+46.8pp/20d)", "spark": [209.34, 208.73, 210.29, 198.89, 218.77, 224.95, 231.33, 239.2, 229.01, 227.46, 224.97, 226.49, 224.93, 222.38, 244.61, 269.07, 269.14, 273.93, 295.15, 307.17], "isNew": false, "rankDelta": -20, "scoreDelta": -13}, {"rank": 23, "sym": "OCCLLTD", "name": "OCCL Ltd", "sector": "Commodity Chemicals", "score": 80.0, "rs": 21.9, "chg": 4.99, "price": 152.2, "target": 200.52, "targetPct": 31.7, "stop": 142.54, "stopPct": 6.3, "rr": 5.0, "basis": "ATR", "series": "BE", "tier": "B", "checks": 4, "fresh": true, "freshList": "DARVAS, Premium_3_for_Momentum", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": true, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2], "leaderDays": 2, "streak": 2, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": true, "gap": 0.7, "relVol": 3.5, "closePos": 1.0, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_3_for_Momentum; healthy move today (+5.0%); strong relative strength vs. market (+21.9pp/20d)", "spark": [126.98, 126.17, 127.61, 125.95, 125.64, 124.18, 118.82, 120.06, 124.0, 128.3, 131.5, 138.02, 135.66, 135.27, 135.74, 136.3, 136.88, 139.3, 144.96, 152.2], "isNew": false, "rankDelta": 18, "scoreDelta": 7}, {"rank": 24, "sym": "TMB", "name": "Tamilnad Mercantile Bank Ltd", "sector": "Private Banks", "score": 80.0, "rs": 20.7, "chg": 11.08, "price": 893.65, "target": 1141.74, "targetPct": 27.8, "stop": 844.03, "stopPct": 5.6, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "Premium_3_for_Momentum, Premium_7.1, RSI_in_all_TF_65, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2], "leaderDays": 1, "streak": 1, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": true, "gap": 0.8, "relVol": 12.4, "closePos": 0.78, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1, RSI_in_all_TF_65; strengthening (+screeners vs yesterday); fresh trigger today: Premium_3_for_Momentum, Premium_7.1, RSI_in_all_TF_65, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; strong move, some chase risk (+11.1%); top-decile volume today; strong relative strength vs. market (+20.7pp/20d)", "spark": [733.45, 730.3, 746.1, 778.65, 759.15, 768.1, 750.9, 769.2, 801.6, 801.1, 780.35, 815.75, 797.5, 797.35, 806.05, 818.45, 810.65, 799.4, 804.5, 893.65], "isNew": false, "rankDelta": 305, "scoreDelta": 41}, {"rank": 25, "sym": "JKPAPER", "name": "Jk Paper Limited", "sector": "Paper Products", "score": 80.0, "rs": 20.1, "chg": 3.26, "price": 414.55, "target": 527.48, "targetPct": 27.2, "stop": 391.96, "stopPct": 5.4, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 6, "fresh": true, "freshList": "RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2], "leaderDays": 3, "streak": 3, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": false, "gap": 1.3, "relVol": 2.0, "closePos": 0.7, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume; healthy move today (+3.3%); elevated volume today; strong relative strength vs. market (+20.1pp/20d)", "spark": [350.95, 341.65, 348.0, 348.95, 350.85, 360.35, 354.4, 355.75, 365.4, 369.05, 368.95, 374.8, 369.7, 369.55, 371.95, 375.95, 389.3, 391.55, 401.45, 414.55], "isNew": false, "rankDelta": 3, "scoreDelta": 2}, {"rank": 26, "sym": "INDIAGLYCO", "name": "India Glycols Limited", "sector": "Commodity Chemicals", "score": 80.0, "rs": 20.3, "chg": 2.26, "price": 1184.0, "target": 1513.53, "targetPct": 27.8, "stop": 1118.09, "stopPct": 5.6, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "DARVAS, RSI_in_all_TF_65, RT_SHORT_TO_MID_RANGE_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 9, "streak": 9, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.2, "relVol": 1.0, "closePos": 0.62, "patterns": "DARVAS, RT_SHORT_TO_MID_RANGE_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_SHORT_TO_MID_RANGE_BREAKOUT, VCP, Premium_7.1, RSI_in_all_TF_65; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, RSI_in_all_TF_65, RT_SHORT_TO_MID_RANGE_BREAKOUT; healthy move today (+2.3%); strong relative strength vs. market (+20.3pp/20d)", "spark": [986.35, 1028.3, 1075.35, 1075.75, 1073.0, 1078.0, 1037.95, 1042.7, 1067.75, 1088.2, 1102.65, 1137.35, 1156.55, 1159.3, 1143.2, 1153.95, 1140.55, 1173.3, 1157.8, 1184.45], "isNew": false, "rankDelta": 235, "scoreDelta": 37}, {"rank": 27, "sym": "BALAMINES", "name": "Balaji Amines Limited", "sector": "Specialty Chemicals", "score": 79.0, "rs": 20.2, "chg": 5.07, "price": 2284.8, "target": 3198.72, "targetPct": 40.0, "stop": 2081.79, "stopPct": 8.9, "rr": 4.5, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "DARVAS, Premium_7.1", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2], "leaderDays": 2, "streak": 1, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": false, "gap": 2.0, "relVol": 0.9, "closePos": 0.74, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, Premium_7.1, RT_COP_Strategy; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_7.1; healthy move today (+5.1%); strong relative strength vs. market (+20.2pp/20d)", "spark": [2035.9, 2090.2, 2231.3, 2194.2, 2144.7, 2067.8, 2196.7, 2364.0, 2414.9, 2340.9, 2311.5, 2314.2, 2371.8, 2289.1, 2275.8, 2366.5, 2380.3, 2349.2, 2174.5, 2284.8], "isNew": false, "rankDelta": 592, "scoreDelta": 52}, {"rank": 28, "sym": "RATNAVEER", "name": "Ratnaveer Precision Engineering Ltd", "sector": "Industrial Machinery", "score": 79.0, "rs": 9.9, "chg": 11.76, "price": 199.61, "target": 260.24, "targetPct": 30.4, "stop": 187.48, "stopPct": 6.1, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "Premium_7.1, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": true, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": true, "gap": 1.9, "relVol": 13.8, "closePos": 0.8, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; strong move, some chase risk (+11.8%); top-decile volume today; bulk/block BUY > SELL (17,738,152 vs 17,599,877); outperforming market (+9.9pp/20d)", "spark": [181.2, 178.17, 177.02, 173.56, 179.97, 177.98, 180.69, 180.26, 180.01, 179.73, 175.99, 175.27, 175.53, 180.66, 180.25, 176.61, 175.34, 177.47, 178.61, 199.61], "isNew": false, "rankDelta": 148, "scoreDelta": 30}, {"rank": 29, "sym": "APCOTEXIND", "name": "Apcotex Industries Limited", "sector": "Specialty Chemicals", "score": 78.0, "rs": 18.0, "chg": 4.89, "price": 588.5, "target": 757.62, "targetPct": 28.7, "stop": 554.67, "stopPct": 5.7, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "Premium_7.1, RSI_in_all_TF_65, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2], "leaderDays": 1, "streak": 1, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": false, "gap": 0.1, "relVol": 2.7, "closePos": 0.85, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1, RSI_in_all_TF_65; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1, RSI_in_all_TF_65, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; healthy move today (+4.9%); strong relative strength vs. market (+18.0pp/20d)", "spark": [507.9, 507.2, 523.1, 525.55, 510.85, 507.9, 496.95, 506.4, 507.4, 519.35, 527.9, 521.35, 541.7, 529.1, 552.1, 558.3, 555.1, 560.6, 561.05, 588.5], "isNew": false, "rankDelta": 199, "scoreDelta": 33}, {"rank": 30, "sym": "POLYPLEX", "name": "Polyplex Corporation Limited", "sector": "Commodity Chemicals", "score": 78.0, "rs": 19.3, "chg": 3.64, "price": 1170.0, "target": 1462.5, "targetPct": 25.0, "stop": 1111.5, "stopPct": 5.0, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "Premium_3_for_Momentum, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 2, 1, 1, 1, 1, 1, 2, 2, 2], "leaderDays": 6, "streak": 3, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.7, "relVol": 1.0, "closePos": 0.71, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_3_for_Momentum, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT; healthy move today (+3.6%); strong relative strength vs. market (+19.3pp/20d)", "spark": [951.6, 959.65, 991.2, 1017.15, 1014.9, 1025.05, 1019.15, 1029.45, 1060.55, 1092.75, 1062.7, 1069.5, 1063.8, 1077.55, 1075.35, 1071.95, 1115.05, 1142.15, 1128.95, 1161.9], "isNew": false, "rankDelta": 101, "scoreDelta": 22}, {"rank": 31, "sym": "CUPID", "name": "Cupid Limited", "sector": "FMCG - Personal Products", "score": 77.0, "rs": 17.0, "chg": 3.76, "price": 221.46, "target": 310.04, "targetPct": 40.0, "stop": 200.8, "stopPct": 9.3, "rr": 4.3, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 6, "fresh": true, "freshList": "RSI_in_all_TF_65, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 1, 2, 2], "leaderDays": 17, "streak": 2, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.5, "relVol": 0.5, "closePos": 0.93, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1, RSI_in_all_TF_65; strengthening (+screeners vs yesterday); fresh trigger today: RSI_in_all_TF_65, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT; healthy move today (+3.8%); top-decile volume today; strong relative strength vs. market (+17.0pp/20d)", "spark": [189.93, 193.38, 192.06, 198.84, 213.09, 221.11, 196.98, 210.01, 212.24, 206.83, 216.77, 219.66, 212.98, 214.78, 207.27, 211.25, 206.9, 208.52, 213.43, 221.46], "isNew": false, "rankDelta": 53, "scoreDelta": 13}, {"rank": 32, "sym": "JINDWORLD", "name": "Jindal Worldwide Limited", "sector": "Textiles", "score": 76.0, "rs": 29.5, "chg": 4.23, "price": 39.43, "target": 55.2, "targetPct": 40.0, "stop": 35.49, "stopPct": 10.0, "rr": 4.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": false, "freshList": "nan", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 2, 2], "leaderDays": 4, "streak": 2, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.7, "relVol": 2.6, "closePos": 0.67, "patterns": "RT_Range_Breakout_with_Volume, VCP", "reasoning": "patterns: RT_Range_Breakout_with_Volume, VCP, Premium_3_for_Momentum, Premium_7.1; weakening (-screeners vs yesterday); healthy move today (+4.2%); top-decile volume today; strong relative strength vs. market (+29.5pp/20d)", "spark": [30.02, 30.2, 30.16, 30.41, 29.84, 29.53, 28.52, 28.66, 29.37, 29.77, 29.9, 30.1, 32.06, 32.2, 31.55, 37.64, 37.15, 34.04, 37.83, 39.43], "isNew": false, "rankDelta": -19, "scoreDelta": -7}, {"rank": 33, "sym": "INDSWFTLAB", "name": "Ind-swift Laboratories Limited", "sector": "Pharmaceuticals", "score": 76.0, "rs": 16.3, "chg": 5.46, "price": 239.91, "target": 335.87, "targetPct": 40.0, "stop": 220.48, "stopPct": 8.1, "rr": 4.9, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "Premium_7.1, RSI_in_all_TF_65", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2], "leaderDays": 18, "streak": 1, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.2, "relVol": 0.5, "closePos": 0.94, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, Premium_7.1, RSI_in_all_TF_65; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1, RSI_in_all_TF_65; healthy move today (+5.5%); strong relative strength vs. market (+16.3pp/20d)", "spark": [203.53, 200.73, 206.22, 214.16, 221.74, 215.15, 225.47, 235.58, 246.44, 237.7, 229.86, 226.82, 233.89, 231.47, 233.99, 237.6, 233.07, 225.99, 227.49, 239.91], "isNew": false, "rankDelta": 184, "scoreDelta": 30}, {"rank": 34, "sym": "KECL", "name": "Kirloskar Electric Company Limited", "sector": "Heavy Electrical Equipments", "score": 76.0, "rs": 18.9, "chg": 10.0, "price": 137.33, "target": 189.69, "targetPct": 38.1, "stop": 126.86, "stopPct": 7.6, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "DARVAS, Premium_7.1, RT-52W_AWAY, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2], "leaderDays": 3, "streak": 1, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": true, "gap": 1.6, "relVol": 3.9, "closePos": 1.0, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_7.1, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; strong move, some chase risk (+10.0%); strong relative strength vs. market (+18.9pp/20d)", "spark": [117.3, 119.64, 122.03, 119.59, 115.99, 114.41, 108.93, 110.87, 115.19, 116.91, 118.33, 115.74, 121.51, 119.11, 121.63, 127.71, 127.15, 125.91, 124.85, 137.33], "isNew": true, "rankDelta": null, "scoreDelta": null}, {"rank": 35, "sym": "MONARCH", "name": "Monarch Networth Capital Ltd", "sector": "Investment Banking & Brokerage", "score": 76.0, "rs": 16.9, "chg": 11.14, "price": 397.6, "target": 501.13, "targetPct": 26.0, "stop": 376.89, "stopPct": 5.2, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 5, "fresh": true, "freshList": "DARVAS, Premium_3_for_Momentum, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2], "leaderDays": 1, "streak": 1, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": true, "gap": 0.9, "relVol": 14.9, "closePos": 0.86, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_3_for_Momentum, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; strong move, some chase risk (+11.1%); top-decile volume today; strong relative strength vs. market (+16.9pp/20d)", "spark": [336.75, 342.7, 347.8, 345.85, 353.75, 347.7, 345.5, 351.2, 360.7, 363.5, 360.35, 358.55, 362.45, 360.55, 357.85, 359.95, 356.35, 356.2, 357.75, 397.6], "isNew": false, "rankDelta": 475, "scoreDelta": 45}, {"rank": 36, "sym": "IRISDOREME", "name": "Iris Clothings Ltd", "sector": "Retail - Apparel", "score": 76.0, "rs": 21.9, "chg": 2.32, "price": 48.94, "target": 66.79, "targetPct": 36.5, "stop": 45.37, "stopPct": 7.3, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 6, "fresh": true, "freshList": "RT_Range_Breakout_with_Volume", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 2, 1, 1, 1, 2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 1, 1, 2, 2, 2], "leaderDays": 12, "streak": 3, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.4, "relVol": 2.2, "closePos": 0.56, "patterns": "DARVAS, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1, RSI_in_all_TF_65; fresh trigger today: RT_Range_Breakout_with_Volume; healthy move today (+2.3%); elevated volume today; strong relative strength vs. market (+21.9pp/20d)", "spark": [41.67, 44.33, 42.85, 42.96, 43.27, 45.02, 44.59, 44.85, 44.33, 43.82, 43.82, 45.52, 46.82, 46.54, 46.31, 46.03, 46.68, 46.83, 47.83, 48.29], "isNew": false, "rankDelta": -17, "scoreDelta": -5}, {"rank": 37, "sym": "HUHTAMAKI", "name": "Huhtamaki India Ltd", "sector": "Packaging", "score": 75.0, "rs": 59.7, "chg": -1.9, "price": 312.61, "target": 437.65, "targetPct": 40.0, "stop": 285.99, "stopPct": 8.5, "rr": 4.7, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "nan", "volOk": true, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 20, "streak": 20, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.5, "relVol": 1.3, "closePos": 0.27, "patterns": "DARVAS", "reasoning": "patterns: DARVAS, Premium_3_for_Momentum; weakening (-screeners vs yesterday); down today (-1.9%); elevated volume today; strong relative strength vs. market (+59.7pp/20d)", "spark": [197.18, 209.4, 210.7, 215.63, 214.82, 213.23, 203.65, 207.75, 211.13, 221.53, 215.78, 222.29, 232.69, 237.44, 249.79, 264.19, 291.98, 297.38, 318.68, 312.61], "isNew": false, "rankDelta": -33, "scoreDelta": -20}, {"rank": 38, "sym": "PPLPHARMA", "name": "Piramal Pharma Ltd", "sector": "Pharmaceuticals", "score": 74.0, "rs": 14.7, "chg": 5.95, "price": 192.05, "target": 250.58, "targetPct": 30.5, "stop": 180.34, "stopPct": 6.1, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": true, "freshList": "RT-52W_AWAY, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": -0.3, "relVol": 2.0, "closePos": 0.95, "patterns": "RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; healthy move today (+6.0%); top-decile volume today; outperforming market (+14.7pp/20d)", "spark": [168.09, 168.54, 168.29, 175.95, 177.88, 175.23, 168.11, 171.99, 177.16, 173.63, 171.93, 171.66, 174.79, 179.42, 178.87, 184.81, 177.1, 180.83, 181.27, 192.05], "isNew": false, "rankDelta": 345, "scoreDelta": 38}, {"rank": 39, "sym": "STALLION", "name": "Stallion India Fluorochemicals Ltd", "sector": "Specialty Chemicals", "score": 74.0, "rs": 42.3, "chg": 5.62, "price": 255.5, "target": 357.7, "targetPct": 40.0, "stop": 233.91, "stopPct": 8.5, "rr": 4.7, "basis": "ATR", "series": "EQ", "tier": "A", "checks": 6, "fresh": true, "freshList": "Premium_7.1, RT_Master_Resistance_Breakout_Screener", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2], "leaderDays": 5, "streak": 5, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.8, "relVol": 1.0, "closePos": 0.9, "patterns": "RT_Master_Resistance_Breakout_Screener", "reasoning": "patterns: RT_Master_Resistance_Breakout_Screener, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1, RT_Master_Resistance_Breakout_Screener; healthy move today (+5.6%); elevated volume today; strong relative strength vs. market (+42.3pp/20d)", "spark": [184.24, 182.27, 185.31, 195.78, 189.59, 182.78, 179.82, 182.12, 204.88, 209.88, 203.13, 210.56, 212.04, 214.76, 217.1, 245.32, 250.63, 253.22, 241.9, 255.5], "isNew": false, "rankDelta": 279, "scoreDelta": 34}, {"rank": 40, "sym": "EQUIPPP", "name": "Equippp Social Impact Technologies Ltd", "sector": "IT Services & Consulting", "score": 74.0, "rs": 16.9, "chg": 4.54, "price": 25.1, "target": 35.14, "targetPct": 40.0, "stop": 22.91, "stopPct": 8.7, "rr": 4.6, "basis": "ATR", "series": "BE", "tier": "B", "checks": 4, "fresh": true, "freshList": "DARVAS, Premium_7.1, RT_Range_Breakout_with_Volume", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": true, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 2], "leaderDays": 13, "streak": 1, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": true, "gap": -2.3, "relVol": 5.8, "closePos": 0.97, "patterns": "DARVAS, RT_Range_Breakout_with_Volume", "reasoning": "patterns: DARVAS, RT_Range_Breakout_with_Volume, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_7.1, RT_Range_Breakout_with_Volume; healthy move today (+4.5%); strong relative strength vs. market (+16.9pp/20d)", "spark": [20.55, 20.87, 21.5, 21.5, 21.9, 21.45, 22.0, 23.01, 23.29, 24.21, 24.48, 23.63, 24.59, 24.54, 24.4, 24.51, 24.01, 24.23, 24.01, 25.03], "isNew": true, "rankDelta": null, "scoreDelta": null}, {"rank": 41, "sym": "VAIBHAVGBL", "name": "Vaibhav Global Limited", "sector": "Apparel & Accessories", "score": 74.0, "rs": 14.8, "chg": 5.18, "price": 264.99, "target": 362.11, "targetPct": 36.7, "stop": 245.57, "stopPct": 7.3, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "DARVAS, Premium_7.1, RT_Master_Resistance_Breakout_Screener", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.2, "relVol": 1.0, "closePos": 0.85, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_7.1, RT_Master_Resistance_Breakout_Screener; healthy move today (+5.2%); outperforming market (+14.8pp/20d)", "spark": [229.26, 233.14, 236.5, 236.12, 234.47, 237.02, 242.77, 255.78, 261.36, 255.88, 251.17, 253.13, 251.63, 262.07, 254.9, 258.11, 258.14, 254.99, 251.94, 264.99], "isNew": false, "rankDelta": 579, "scoreDelta": 47}, {"rank": 42, "sym": "MPSLTD", "name": "Mps Limited", "sector": "Publishing", "score": 74.0, "rs": 42.1, "chg": -2.98, "price": 2687.1, "target": 3639.81, "targetPct": 35.5, "stop": 2496.56, "stopPct": 7.1, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 3, "fresh": false, "freshList": "nan", "volOk": false, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2], "leaderDays": 5, "streak": 5, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": -0.3, "relVol": 0.9, "closePos": 0.47, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, Premium_7.1, RT_COP_Strategy; weakening (-screeners vs yesterday); down today (-3.0%); strong relative strength vs. market (+42.1pp/20d)", "spark": [1888.5, 1896.5, 1872.9, 1896.1, 2011.3, 1999.0, 1948.9, 2022.8, 1997.0, 2020.7, 2009.5, 2005.9, 2059.7, 2096.8, 2061.6, 2137.1, 2564.5, 2642.8, 2769.7, 2687.1], "isNew": false, "rankDelta": -37, "scoreDelta": -21}, {"rank": 43, "sym": "PRICOLLTD", "name": "Pricol Ltd.", "sector": "Auto Parts", "score": 73.0, "rs": 13.6, "chg": 5.83, "price": 665.35, "target": 831.69, "targetPct": 25.0, "stop": 632.08, "stopPct": 5.0, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": true, "freshList": "Premium_3_for_Momentum, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.5, "relVol": 2.4, "closePos": 0.84, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_3_for_Momentum, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP; healthy move today (+5.8%); elevated volume today; outperforming market (+13.6pp/20d)", "spark": [602.3, 616.3, 620.35, 621.7, 624.6, 622.7, 608.8, 618.2, 627.25, 621.15, 616.6, 618.35, 624.8, 615.3, 613.6, 610.95, 605.3, 626.1, 628.7, 665.35], "isNew": false, "rankDelta": 91, "scoreDelta": 18}, {"rank": 44, "sym": "SOTL", "name": "Savita Oil Technologies Limited", "sector": "Commodity Chemicals", "score": 73.0, "rs": 28.4, "chg": 0.56, "price": 649.35, "target": 909.09, "targetPct": 40.0, "stop": 596.43, "stopPct": 8.2, "rr": 4.9, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 3, "fresh": false, "freshList": "nan", "volOk": false, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2], "leaderDays": 4, "streak": 3, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.9, "relVol": 0.9, "closePos": 0.51, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, Premium_7.1, RSI_in_all_TF_65; strong relative strength vs. market (+28.4pp/20d)", "spark": [513.5, 512.65, 516.75, 532.65, 578.9, 558.9, 551.2, 581.8, 607.45, 597.45, 579.55, 596.6, 580.25, 580.25, 589.65, 601.75, 596.15, 645.1, 645.75, 649.35], "isNew": false, "rankDelta": 32, "scoreDelta": 7}, {"rank": 45, "sym": "KALYANKJIL", "name": "Kalyan Jewellers India Ltd", "sector": "Precious Metals, Jewellery & Watches", "score": 72.0, "rs": 48.9, "chg": -1.56, "price": 564.6, "target": 790.44, "targetPct": 40.0, "stop": 516.02, "stopPct": 8.6, "rr": 4.6, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "nan", "volOk": true, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": true, "phase": "LPS", "strip": [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 13, "streak": 13, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.3, "relVol": 0.4, "closePos": 0.09, "patterns": "DARVAS", "reasoning": "patterns: DARVAS; down today (-1.6%); top-decile volume today; strong relative strength vs. market (+48.9pp/20d)", "spark": [386.7, 381.05, 388.1, 382.05, 381.25, 354.75, 374.15, 443.0, 476.15, 510.65, 529.75, 548.1, 546.6, 574.4, 570.0, 577.0, 596.1, 585.6, 573.55, 564.6], "isNew": false, "rankDelta": -14, "scoreDelta": -5}, {"rank": 46, "sym": "DIVISLAB", "name": "Divi's Laboratories Limited", "sector": "Labs & Life Sciences Services", "score": 72.0, "rs": 12.5, "chg": 2.28, "price": 7414.0, "target": 9267.5, "targetPct": 25.0, "stop": 7043.3, "stopPct": 5.0, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "GEM_SWING, Premium_7.1, RSI_in_all_TF_65, RT_Master_Resistance_Breakout_Screener, RT_SHORT_TO_MID_RANGE_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": -0.4, "relVol": 1.2, "closePos": 0.81, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SHORT_TO_MID_RANGE_BREAKOUT, SNIPER_IN_PROCESS, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SHORT_TO_MID_RANGE_BREAKOUT, SNIPER_IN_PROCESS, VCP, Premium_7.1, RSI_in_all_TF_65; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1, RSI_in_all_TF_65, RT_Master_Resistance_Breakout_Screener, RT_SHORT_TO_MID_RANGE_BREAKOUT; healthy move today (+2.3%); outperforming market (+12.5pp/20d)", "spark": [6579.0, 6545.5, 6682.5, 6757.0, 6857.5, 6771.5, 6755.0, 6813.0, 6836.0, 6938.5, 7188.5, 7273.0, 7316.0, 7247.5, 7318.0, 7330.0, 7386.5, 7305.0, 7248.5, 7414.0], "isNew": false, "rankDelta": 156, "scoreDelta": 25}, {"rank": 47, "sym": "WSTCSTPAPR", "name": "West Coast Paper Mills Limited", "sector": "Paper Products", "score": 72.0, "rs": 12.2, "chg": 5.09, "price": 581.7, "target": 752.73, "targetPct": 29.4, "stop": 547.49, "stopPct": 5.9, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "Premium_3_for_Momentum, RT_52W_BREAKOUT, RT_COP_Strategy, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.3, "relVol": 1.9, "closePos": 0.72, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1, RT_COP_Strategy; strengthening (+screeners vs yesterday); fresh trigger today: Premium_3_for_Momentum, RT_52W_BREAKOUT, RT_COP_Strategy, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; healthy move today (+5.1%); outperforming market (+12.2pp/20d)", "spark": [534.35, 525.2, 532.0, 529.4, 523.55, 533.3, 541.95, 547.45, 538.2, 535.15, 528.5, 531.5, 526.25, 520.4, 516.9, 519.65, 549.0, 560.7, 553.55, 581.7], "isNew": false, "rankDelta": 88, "scoreDelta": 17}, {"rank": 48, "sym": "GPTHEALTH", "name": "GPT Healthcare Ltd", "sector": "Hospitals & Diagnostic Centres", "score": 72.0, "rs": 12.6, "chg": 3.98, "price": 165.99, "target": 212.03, "targetPct": 27.7, "stop": 156.78, "stopPct": 5.5, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "Premium_7.1, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.2, "relVol": 2.7, "closePos": 0.87, "patterns": "RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; healthy move today (+4.0%); outperforming market (+12.6pp/20d)", "spark": [148.51, 150.06, 156.47, 158.82, 158.15, 156.22, 150.58, 158.32, 158.11, 156.8, 154.1, 152.21, 153.78, 152.54, 149.05, 151.03, 155.39, 156.75, 159.64, 165.99], "isNew": false, "rankDelta": 263, "scoreDelta": 32}, {"rank": 49, "sym": "UJJIVANSFB", "name": "Ujjivan Small Finance Bank Ltd", "sector": "Private Banks", "score": 72.0, "rs": 25.2, "chg": 1.2, "price": 71.57, "target": 94.78, "targetPct": 32.4, "stop": 66.93, "stopPct": 6.5, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": false, "freshList": "nan", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 2, 1, 1, 2, 2, 1, 2, 2, 2], "leaderDays": 8, "streak": 3, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.1, "relVol": 1.6, "closePos": 0.21, "patterns": "DARVAS, RT_Range_Breakout_with_Volume, VCP", "reasoning": "patterns: DARVAS, RT_Range_Breakout_with_Volume, VCP, Premium_3_for_Momentum, RSI_in_all_TF_65; weakening (-screeners vs yesterday); healthy move today (+1.2%); top-decile volume today; strong relative strength vs. market (+25.2pp/20d)", "spark": [59.05, 61.31, 61.4, 59.6, 59.78, 61.62, 59.63, 62.58, 65.27, 66.87, 65.14, 65.51, 65.62, 64.88, 65.61, 65.63, 65.05, 68.78, 70.72, 71.57], "isNew": false, "rankDelta": -41, "scoreDelta": -14}, {"rank": 50, "sym": "KERNEX", "name": "Kernex Microsystems (india) Limited", "sector": "Software Services", "score": 72.0, "rs": 12.4, "chg": 5.26, "price": 2321.2, "target": 3168.11, "targetPct": 36.5, "stop": 2151.82, "stopPct": 7.3, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "DARVAS, RT_SIDEWAY_BREAKOUT", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 5, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.4, "relVol": 1.0, "closePos": 0.88, "patterns": "DARVAS, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, RT_SIDEWAY_BREAKOUT; healthy move today (+5.3%); outperforming market (+12.4pp/20d)", "spark": [2159.9, 2293.6, 2389.1, 2378.8, 2403.0, 2190.2, 2038.6, 2124.0, 2157.5, 2233.4, 2192.9, 2195.1, 2105.0, 2039.3, 2120.1, 2131.4, 2195.6, 2220.5, 2205.2, 2321.2], "isNew": false, "rankDelta": 278, "scoreDelta": 33}, {"rank": 51, "sym": "FILATEX", "name": "Filatex India Limited", "sector": "Textiles", "score": 71.0, "rs": 43.8, "chg": 1.1, "price": 74.64, "target": 104.5, "targetPct": 40.0, "stop": 67.6, "stopPct": 9.4, "rr": 4.2, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": false, "freshList": "nan", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 13, "streak": 13, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.4, "relVol": 0.5, "closePos": 0.47, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, RT_COP_Strategy; weakening (-screeners vs yesterday); healthy move today (+1.1%); elevated volume today; strong relative strength vs. market (+43.8pp/20d)", "spark": [51.91, 51.89, 52.42, 55.95, 58.78, 57.64, 58.05, 61.06, 62.25, 64.38, 61.69, 70.34, 73.1, 71.57, 72.47, 71.3, 71.73, 72.0, 73.83, 74.64], "isNew": false, "rankDelta": -48, "scoreDelta": -24}, {"rank": 52, "sym": "TFCILTD", "name": "Tourism Finance Corporation Of India Limited", "sector": "Specialized Finance", "score": 71.0, "rs": 25.0, "chg": 8.63, "price": 94.8, "target": 129.77, "targetPct": 36.9, "stop": 87.81, "stopPct": 7.4, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "nan", "volOk": true, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2], "leaderDays": 1, "streak": 1, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": true, "gap": 2.0, "relVol": 4.1, "closePos": 0.94, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_3_for_Momentum, Premium_7.1, RSI_in_all_TF_65; weakening (-screeners vs yesterday); strong move, some chase risk (+8.6%); top-decile volume today; strong relative strength vs. market (+25.0pp/20d)", "spark": [77.07, 76.54, 77.93, 79.24, 81.13, 78.95, 75.34, 75.14, 75.15, 80.81, 80.53, 83.8, 83.76, 85.03, 82.74, 83.21, 81.81, 82.09, 87.27, 94.8], "isNew": false, "rankDelta": -9, "scoreDelta": -1}, {"rank": 53, "sym": "LLOYDSME", "name": "Lloyds Metals & Energy Ltd", "sector": "Iron & Steel", "score": 71.0, "rs": 11.1, "chg": 3.83, "price": 2014.9, "target": 2529.94, "targetPct": 25.6, "stop": 1911.89, "stopPct": 5.1, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": true, "freshList": "RSI_in_all_TF_65, RT_52W_BREAKOUT, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.0, "relVol": 2.7, "closePos": 0.8, "patterns": "DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_52W_BREAKOUT, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1, RSI_in_all_TF_65; strengthening (+screeners vs yesterday); fresh trigger today: RSI_in_all_TF_65, RT_52W_BREAKOUT, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; healthy move today (+3.8%); elevated volume today; outperforming market (+11.1pp/20d)", "spark": [1810.4, 1805.9, 1811.9, 1777.0, 1755.4, 1755.6, 1725.8, 1745.1, 1799.6, 1827.1, 1825.5, 1866.1, 1843.5, 1865.4, 1907.9, 1936.4, 1871.7, 1930.6, 1940.5, 2014.9], "isNew": false, "rankDelta": 9, "scoreDelta": 3}, {"rank": 54, "sym": "CARTRADE", "name": "Cartrade Tech Ltd", "sector": "Online Services", "score": 71.0, "rs": 11.5, "chg": 12.13, "price": 2978.5, "target": 4062.52, "targetPct": 36.4, "stop": 2761.7, "stopPct": 7.3, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "DARVAS, Premium_7.1, RT-52W_AWAY, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [2, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 9, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": true, "gap": 0.8, "relVol": 4.5, "closePos": 0.89, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, Premium_7.1, RT_Master_Resistance_Breakout_Screener, RT_SIDEWAY_BREAKOUT; strong move, some chase risk (+12.1%); elevated volume today; outperforming market (+11.5pp/20d)", "spark": [2693.0, 2813.4, 2742.0, 2699.6, 2791.4, 2783.4, 2775.9, 2735.2, 2809.9, 2799.3, 2895.0, 2808.2, 2812.6, 2699.4, 2755.4, 2726.0, 2809.7, 2692.2, 2656.4, 2978.5], "isNew": false, "rankDelta": 705, "scoreDelta": 53}, {"rank": 55, "sym": "OPTIEMUS", "name": "Optiemus Infracom Ltd", "sector": "Technology Hardware", "score": 71.0, "rs": 29.4, "chg": 1.68, "price": 610.0, "target": 820.43, "targetPct": 34.5, "stop": 567.91, "stopPct": 6.9, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "Premium_7.1, RT-52W_AWAY", "volOk": false, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "leaderDays": 16, "streak": 16, "persistent": true, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.0, "relVol": 0.3, "closePos": 0.7, "patterns": "VCP", "reasoning": "patterns: VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1; healthy move today (+1.7%); strong relative strength vs. market (+29.4pp/20d)", "spark": [464.7, 485.4, 504.55, 521.55, 522.4, 520.8, 538.3, 563.55, 541.05, 579.9, 566.3, 565.85, 583.25, 588.95, 607.0, 605.35, 615.45, 615.55, 599.95, 610.45], "isNew": false, "rankDelta": 452, "scoreDelta": 39}, {"rank": 56, "sym": "DHANBANK", "name": "Dhanlaxmi Bank Limited", "sector": "Private Banks", "score": 71.0, "rs": 11.5, "chg": 3.09, "price": 35.35, "target": 46.68, "targetPct": 32.1, "stop": 33.08, "stopPct": 6.4, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": false, "freshList": "GEM_SWING, Premium_7.1", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 0.0, "relVol": 1.2, "closePos": 0.72, "patterns": "DARVAS, VCP", "reasoning": "patterns: DARVAS, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1; healthy move today (+3.1%); elevated volume today; outperforming market (+11.5pp/20d)", "spark": [31.57, 31.94, 33.55, 34.09, 33.82, 36.22, 33.63, 33.89, 34.75, 34.85, 34.0, 33.89, 34.1, 33.86, 33.8, 34.25, 34.04, 34.36, 34.29, 35.4], "isNew": false, "rankDelta": 316, "scoreDelta": 34}, {"rank": 57, "sym": "DEEPINDS", "name": "Deep Industries Ltd", "sector": "Oil & Gas - Equipment & Services", "score": 71.0, "rs": 11.2, "chg": 7.68, "price": 516.45, "target": 674.94, "targetPct": 30.7, "stop": 484.75, "stopPct": 6.1, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": true, "freshList": "RT-52W_AWAY, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": true, "gap": 0.0, "relVol": 6.7, "closePos": 0.74, "patterns": "RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT; healthy move today (+7.7%); elevated volume today; outperforming market (+11.2pp/20d)", "spark": [454.55, 454.95, 453.8, 463.05, 456.4, 445.35, 449.6, 454.15, 465.3, 462.7, 465.6, 458.75, 474.6, 476.0, 476.05, 470.55, 469.5, 459.5, 479.6, 516.45], "isNew": false, "rankDelta": 300, "scoreDelta": 34}, {"rank": 58, "sym": "RKFORGE", "name": "Ramkrishna Forgings Limited", "sector": "Rail", "score": 71.0, "rs": 11.4, "chg": 7.71, "price": 625.45, "target": 781.81, "targetPct": 25.0, "stop": 594.18, "stopPct": 5.0, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": true, "freshList": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": true, "wLPS": false, "phase": "SOS", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "leaderDays": 0, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": true, "gap": 2.5, "relVol": 5.8, "closePos": 0.75, "patterns": "DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT, VCP", "reasoning": "patterns: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: DARVAS, RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SHORT_TO_MID_RANGE_BREAKOUT, RT_SIDEWAY_BREAKOUT; healthy move today (+7.7%); top-decile volume today; outperforming market (+11.4pp/20d)", "spark": [564.9, 562.9, 574.95, 577.35, 574.45, 566.5, 565.0, 560.7, 565.3, 565.5, 553.85, 563.5, 589.7, 568.25, 562.15, 576.3, 575.7, 584.0, 580.7, 625.45], "isNew": false, "rankDelta": 58, "scoreDelta": 11}, {"rank": 59, "sym": "PVRINOX", "name": "PVR Inox Ltd", "sector": "Theatres", "score": 71.0, "rs": 16.3, "chg": 5.57, "price": 1123.2, "target": 1404.0, "targetPct": 25.0, "stop": 1067.04, "stopPct": 5.0, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 5, "fresh": false, "freshList": "Premium_3_for_Momentum", "volOk": true, "inst": false, "healthy": true, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2], "leaderDays": 1, "streak": 1, "persistent": false, "newLeader": true, "ep": false, "epFade": false, "emerging": true, "gap": 0.8, "relVol": 3.7, "closePos": 0.79, "patterns": "RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT", "reasoning": "patterns: RT_Master_Resistance_Breakout_Screener, RT_Range_Breakout_with_Volume, RT_SIDEWAY_BREAKOUT, Premium_3_for_Momentum, Premium_7.1; fresh trigger today: Premium_3_for_Momentum; healthy move today (+5.6%); elevated volume today; strong relative strength vs. market (+16.3pp/20d)", "spark": [961.65, 978.15, 985.4, 1001.25, 1014.05, 1001.95, 976.25, 989.5, 1002.05, 1020.55, 1011.45, 1007.0, 1005.7, 999.25, 1019.25, 1001.1, 992.65, 1007.4, 1063.95, 1123.2], "isNew": false, "rankDelta": 4, "scoreDelta": 3}, {"rank": 60, "sym": "ADANIENSOL", "name": "Adani Energy Solutions Ltd", "sector": "Power Infrastructure", "score": 71.0, "rs": 14.1, "chg": 0.06, "price": 1703.3, "target": 2134.39, "targetPct": 25.3, "stop": 1617.08, "stopPct": 5.1, "rr": 5.0, "basis": "ATR", "series": "EQ", "tier": "B", "checks": 4, "fresh": true, "freshList": "Premium_7.1, SNIPER_IN_PROCESS", "volOk": true, "inst": false, "healthy": false, "extended": false, "lagging": false, "t2t": false, "wSOS": false, "wLPS": false, "phase": "Base", "strip": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1], "leaderDays": 2, "streak": 0, "persistent": false, "newLeader": false, "ep": false, "epFade": false, "emerging": false, "gap": 1.0, "relVol": 1.0, "closePos": 0.61, "patterns": "DARVAS, SNIPER_IN_PROCESS, VCP", "reasoning": "patterns: DARVAS, SNIPER_IN_PROCESS, VCP, Premium_7.1; strengthening (+screeners vs yesterday); fresh trigger today: Premium_7.1, SNIPER_IN_PROCESS; elevated volume today; outperforming market (+14.1pp/20d)", "spark": [1491.4, 1521.4, 1556.9, 1568.8, 1622.8, 1651.0, 1655.5, 1618.5, 1654.0, 1644.6, 1690.3, 1678.0, 1689.5, 1722.6, 1729.5, 1741.6, 1724.4, 1683.8, 1702.2, 1703.3], "isNew": false, "rankDelta": 105, "scoreDelta": 21}];
+const META = {"sheetDate": "27 Jul 2026", "totalGated": 1211, "shown": 60, "tierA": 21, "tierB": 39, "freshCount": 42, "medianRsTop10": 38.7, "persistentCount": 16, "newLeaderCount": 14, "epCount": 1, "emergingCount": 13, "rwCount": 0, "rwAdminCount": 0, "hasGroupData": false, "stripDates": ["30 Jun", "01 Jul", "02 Jul", "03 Jul", "06 Jul", "07 Jul", "08 Jul", "09 Jul", "10 Jul", "13 Jul", "14 Jul", "15 Jul", "16 Jul", "17 Jul", "20 Jul", "21 Jul", "22 Jul", "23 Jul", "24 Jul", "27 Jul"], "generated": "27 Jul 2026 21:25", "market": {"breadth": 51, "universe": 2651, "date": "27 Jul 2026"}, "diff": {"prevDate": "24 Jul", "newCount": 5, "dropped": [{"sym": "SHALPAINTS", "name": "Shalimar Paints Limited", "score": 88.0, "rank": 6}, {"sym": "KAMDHENU", "name": "Kamdhenu Limited", "score": 88.0, "rank": 7}, {"sym": "BLSE", "name": "BLS E-Services Ltd", "score": 86.0, "rank": 10}, {"sym": "JGCHEM", "name": "J.G.Chemicals Ltd", "score": 82.0, "rank": 14}, {"sym": "SGMART", "name": "SG Mart Ltd", "score": 82.0, "rank": 15}, {"sym": "NIBL", "name": "Nrb Industrial Bearings Limited", "score": 82.0, "rank": 16}, {"sym": "SSWL", "name": "Steel Strips Wheels Limited", "score": 81.0, "rank": 17}, {"sym": "GANDHAR", "name": "Gandhar Oil Refinery (India) Ltd", "score": 80.0, "rank": 20}, {"sym": "SPORTKING", "name": "Sportking India Ltd", "score": 80.0, "rank": 21}, {"sym": "GHCLTEXTIL", "name": "GHCL Textiles Ltd", "score": 80.0, "rank": 22}, {"sym": "RAIN", "name": "Rain Industries Limited", "score": 79.0, "rank": 23}, {"sym": "SGFIN", "name": "SG Finserve Ltd", "score": 79.0, "rank": 24}, {"sym": "SHAREINDIA", "name": "Share India Securities Ltd", "score": 78.0, "rank": 25}, {"sym": "AZAD", "name": "Azad Engineering Ltd", "score": 78.0, "rank": 26}, {"sym": "ESAFSFB", "name": "ESAF Small Finance Bank Ltd", "score": 78.0, "rank": 30}, {"sym": "SATIN", "name": "Satin Creditcare Network Limited", "score": 77.0, "rank": 32}, {"sym": "HSCL", "name": "Himadri Speciality Chemical Limited", "score": 77.0, "rank": 33}, {"sym": "PREMIERPOL", "name": "Premier Polyfilm Limited", "score": 76.0, "rank": 34}, {"sym": "MUTHOOTMF", "name": "Muthoot Microfin Ltd", "score": 76.0, "rank": 35}, {"sym": "GREAVESCOT", "name": "Greaves Cotton Limited", "score": 74.0, "rank": 38}], "movers": [{"sym": "CARTRADE", "scoreDelta": 53, "rankDelta": 705, "score": 71.0}, {"sym": "BALAMINES", "scoreDelta": 52, "rankDelta": 592, "score": 79.0}, {"sym": "VAIBHAVGBL", "scoreDelta": 47, "rankDelta": 579, "score": 74.0}, {"sym": "MONARCH", "scoreDelta": 45, "rankDelta": 475, "score": 76.0}, {"sym": "LXCHEM", "scoreDelta": 43, "rankDelta": 275, "score": 84.0}, {"sym": "TMB", "scoreDelta": 41, "rankDelta": 305, "score": 80.0}, {"sym": "OPTIEMUS", "scoreDelta": 39, "rankDelta": 452, "score": 71.0}, {"sym": "PPLPHARMA", "scoreDelta": 38, "rankDelta": 345, "score": 74.0}, {"sym": "INDIAGLYCO", "scoreDelta": 37, "rankDelta": 235, "score": 80.0}, {"sym": "SENCO", "scoreDelta": 35, "rankDelta": 145, "score": 87.0}, {"sym": "TIRUPATIFL", "scoreDelta": 35, "rankDelta": 152, "score": 86.0}, {"sym": "STALLION", "scoreDelta": 34, "rankDelta": 279, "score": 74.0}]}};
+
+const LS="odin_dash_v1";
+function loadSaved(){try{return JSON.parse(localStorage.getItem(LS))||{}}catch(e){return {}}}
+const saved=loadSaved();
+const st=Object.assign({setup:"",persist:false,newlead:false,emerg:false,rwonly:false,rwadmin:false,tA:true,tB:true,tC:false,fresh:false,vol:false,
+            noext:true,nolag:true,not2t:false,minRs:"",q:"",sortKey:"rank",sortDir:1,openSym:null,
+            page:"shortlist",sector:"",capital:"",risk:"",theme:"",density:"",colSpark:true,colSec:true,showDismissed:false}, saved.st||{});
+let marks=saved.marks||{};          // sym -> "watch" | "taken"
+let dismissed=saved.dismissed||{};  // sym -> 1
+function persist(){try{localStorage.setItem(LS,JSON.stringify({st:Object.assign({},st,{openSym:null}),marks,dismissed}))}catch(e){}}
+
+if(st.theme) document.documentElement.dataset.theme=st.theme;
+document.body.classList.toggle("compact", st.density==="compact");
+function applyColHide(){document.body.classList.toggle("colhide-spark",!st.colSpark);document.body.classList.toggle("colhide-sec",!st.colSec);}
+applyColHide();
+
+document.getElementById("sheetDate").textContent = "sheet: " + META.sheetDate;
+document.getElementById("gen").textContent = META.generated;
+
+function tvLink(sym){return `<a class="tv" href="https://www.tradingview.com/chart/?symbol=NSE%3A${encodeURIComponent(sym)}" target="_blank" rel="noopener" title="Open ${sym} on TradingView" onclick="event.stopPropagation()">TV</a>`;}
+function sparkSvg(a){
+  if(!a||a.length<2) return "";
+  const mn=Math.min(...a),mx=Math.max(...a),rng=(mx-mn)||1,W=74,H=22,p=2;
+  const pts=a.map((v,i)=>{const x=p+i/(a.length-1)*(W-2*p);const y=H-p-(v-mn)/rng*(H-2*p);return x.toFixed(1)+","+y.toFixed(1);});
+  return `<svg class="spark ${a[a.length-1]<a[0]?'dn':''}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="M${pts.join(" L")}"/></svg>`;
+}
+function sharesFor(r){
+  const cap=parseFloat(st.capital),risk=parseFloat(st.risk);
+  if(!cap||!risk||r.price==null||r.stop==null||r.stop>=r.price) return "";
+  const n=Math.floor(cap*risk/100/(r.price-r.stop));
+  if(!isFinite(n)||n<=0) return "";
+  return `<span class="shares" title="risk ${risk}% of Rs ${cap.toLocaleString('en-IN')} at this stop">${n.toLocaleString('en-IN')} sh</span>`;
+}
+function moverArr(r){
+  if(r.rankDelta==null||r.rankDelta===0) return "";
+  const up=r.rankDelta>0;
+  return `<span class="mv ${up?'up':'dn'}" title="rank moved ${up?'+':''}${r.rankDelta} vs prev sheet">${up?'^':'v'}${Math.abs(r.rankDelta)}</span>`;
+}
+function ledBadge(r){
+  if(!r.ledger) return "";
+  const L=r.ledger;
+  if(L.status==="OPEN"){const u=L.unreal==null?0:L.unreal; return `<span class="ledb ${u>=0?'up':'dn'}" title="open paper position since ${L.entryDate}, ${L.days}d held, peak ${L.peak}%">held ${u>=0?'+':''}${u}%</span>`;}
+  const cls=L.status==="TARGET"?"up":L.status==="STOPPED"?"dn":"";
+  const rz=L.realized==null?0:L.realized;
+  return `<span class="ledb ${cls}" title="paper position closed ${L.status}">${L.status.toLowerCase()} ${rz>=0?'+':''}${rz}%</span>`;
+}
+function markStar(r){
+  const m=marks[r.sym]||"";
+  const dis=dismissed[r.sym]?'<span class="mv dn" title="dismissed">x</span>':'';
+  return `<span class="star ${m}" data-star="${r.sym}" title="click: watching -> taken -> clear - shift+click: dismiss">${m?'*':'☆'}</span>${dis}`;
+}
+function breakdownBar(r){
+  const rs=Math.max(0,Math.min(35, r.rs==null?0:r.rs));
+  const pat=Math.min(30,(r.patterns?r.patterns.split(",").filter(Boolean).length:0)*8+(r.fresh?6:0));
+  const fresh=r.fresh?15:(r.newLeader?6:0), vol=r.volOk?10:0, inst=r.inst?10:0;
+  const parts=[["RS",rs,"c0"],["Patterns",pat,"c1"],["Freshness",fresh,"c2"],["Volume",vol,"c3"],["Big-player",inst,"c4"]];
+  const tot=parts.reduce((s,p)=>s+p[1],0)||1;
+  const bar=parts.map(p=>`<i class="${p[2]}" style="width:${p[1]/tot*100}%" title="${p[0]} ~${Math.round(p[1])}"></i>`).join("");
+  const leg=parts.filter(p=>p[1]>0).map(p=>`${p[0]} ~${Math.round(p[1])}`).join(" - ");
+  return `<div class="brk">${bar}</div><div class="brklegend">${leg}  -  indicative composition (relative strength is the real driver; exact internal weights differ).</div>`;
+}
+
+function tiles(){
+  const t=[["Passing liquidity gate",META.totalGated],["Tier A picks",META.tierA],
+           ["Persistent leaders",META.persistentCount],
+           ["New leaders today",META.newLeaderCount],
+           ["Emerging (early)",META.emergingCount],
+           ["In RIGHTWAY (admin)",META.hasGroupData?(META.rwCount+" ("+META.rwAdminCount+")"):"-"],
+           ["Median RS, top 10",META.medianRsTop10==null?"-":("+"+META.medianRsTop10+"pp")]];
+  document.getElementById("tiles").innerHTML =
+    t.map(x=>`<div class="tile"><div class="v">${x[1]}</div><div class="k">${x[0]}</div></div>`).join("");
+}
+
+function pnl(){
+  const el=document.getElementById("pnl"); const L=META.ledger;
+  if(!L||(L.closed===0&&L.open===0)){el.style.display="none";return;}
+  const cell=(v,k,cls)=>`<div class="tile"><div class="v ${cls||''}">${v}</div><div class="k">${k}</div></div>`;
+  const t=[];
+  if(L.closed>0){
+    const sign=L.avgRealized>=0?"+":"";
+    t.push(cell(L.winRate+"%","hit target ("+L.closed+" closed)"));
+    t.push(cell(sign+L.avgRealized+"%","avg realized/trade", L.avgRealized>=0?"pos":"neg"));
+    if(L.profitFactor!=null) t.push(cell(L.profitFactor,"profit factor", L.profitFactor>=1?"pos":"neg"));
+    t.push(cell(L.target+"/"+L.stopped+"/"+L.expired,"tgt / stop / expired"));
+    (L.lens||[]).forEach(x=>t.push(cell(x.win+"%",x.label+" ("+x.n+")")));
+  }
+  if(L.open>0){
+    const u=L.openUnreal; const s=u==null?"":((u>=0?"+":"")+u+"% unreal");
+    t.push(cell(L.open,"open"+(s?" - "+s:""), u==null?"":(u>=0?"pos":"neg")));
+  }
+  el.innerHTML=`<div class="pnlhead">Paper ledger <span> -  how the tool's own tracked picks are doing (paper, +25%/-5% rules)</span></div>`
+    +`<div class="tiles">`+t.join("")+`</div>`;
+}
+
+function visible(){
+  let v = DATA.filter(r=>{
+    if(st.setup==="sos"&&!r.wSOS) return false;
+    if(st.setup==="lps"&&!r.wLPS) return false;
+    if(st.setup==="ep"&&!r.ep) return false;
+    if(st.persist&&!r.persistent) return false;
+    if(st.newlead&&!r.newLeader) return false;
+    if(st.emerg&&!r.emerging) return false;
+    if(st.rwonly&&!r.rwMentions) return false;
+    if(st.rwadmin&&!(r.rwAdmin||r.rwTarget||r.rwTag)) return false;
+    if(r.tier==="A"&&!st.tA) return false;
+    if(r.tier==="B"&&!st.tB) return false;
+    if(r.tier==="C"&&!st.tC) return false;
+    if(st.fresh&&!r.fresh) return false;
+    if(st.vol&&!r.volOk) return false;
+    if(st.noext&&r.extended) return false;
+    if(st.nolag&&r.lagging) return false;
+    if(st.not2t&&r.t2t) return false;
+    if(st.minRs!==""&&(r.rs==null||r.rs<+st.minRs)) return false;
+    if(st.q&&!r.sym.toLowerCase().includes(st.q)) return false;
+    if(st.sector&&r.sector!==st.sector) return false;
+    if(!st.showDismissed&&dismissed[r.sym]) return false;
+    return true;
+  });
+  const k=st.sortKey,d=st.sortDir;
+  v.sort((a,b)=>{const x=a[k]??-1e9,y=b[k]??-1e9;return x<y?-d:x>y?d:0;});
+  return v;
+}
+
+function badge(r){
+  let out="";
+  if(r.fresh) out+='<span class="b good">fresh</span>';
+  if(r.volOk) out+='<span class="b good">vol</span>';
+  if(r.inst)  out+='<span class="b good">inst</span>';
+  if(r.newLeader) out+='<span class="b new">NEW*</span>';
+  if(r.ep) out+=`<span class="b good" title="Episodic Pivot: gapped +${r.gap}% on ${r.relVol}x volume and HELD (closed top-half of range)${r.closePos!=null?`  -  close ${Math.round(r.closePos*100)}% up the range`:''}">EP^</span>`;
+  if(r.emerging&&!r.ep) out+=`<span class="b warn" title="Emerging: volume thrust (${r.relVol}x) with RS rising but not yet extreme - an early, lower-confidence entry">EMRG^</span>`;
+  if(r.extended) out+='<span class="b crit">ext</span>';
+  if(r.lagging)  out+='<span class="b crit">lag</span>';
+  if(r.t2t)      out+='<span class="b warn">T2T</span>';
+  return out||'<span class="b">-</span>';
+}
+function rwCell(r){
+  const hasCall = r.rwAdmin||r.rwTarget||r.rwTag;
+  if(!r.rwMentions && !hasCall) return '<span class="rw none">-</span>';
+  const recentBuzz = r.rwDays!=null&&r.rwDays<=3;
+  const recentConv = r.rwTag && r.rwCallDays!=null && r.rwCallDays<=120;   // admin flagged it important, recently
+  let extra="", tip;
+  tip = r.rwMentions ? `RIGHTWAY mentioned this ${r.rwMentions}x in the last 45 days; last ${r.rwLast||"?"}`
+                     : "Not in recent buzz";
+  if(hasCall){ extra="^"; tip+= r.rwCallDate?` | admin called it ${r.rwCallDate}`:" | admin call"; if(r.rwTag) tip+=` (${r.rwTag})`; }
+  if(recentConv){ extra="*"; }                     // recent conviction wins the marker
+  else if(!hasCall && recentBuzz) extra="*";
+  const cls = recentConv ? "rw recent"
+            : hasCall ? "rw mid"
+            : recentBuzz ? "rw recent"
+            : (r.rwDays!=null&&r.rwDays<=14 ? "rw mid" : "rw stale");
+  return `<span class="${cls}" title="${tip}">${r.rwMentions||""}${extra}</span>`;
+}
+function rwCallInfo(r){
+  let s="";
+  const old = r.rwCallDays!=null && r.rwCallDays>180;   // call is >6 months old -> historical, not a live target
+  if(r.rwTarget!=null){
+    const tn=Number(r.rwTarget);
+    if(isNaN(tn)){
+      s+= old?` - admin's old target <b>${r.rwTarget}</b>`:` - admin target <b>${r.rwTarget}</b>`;   // e.g. "2x"
+    } else if(r.price && tn>=r.price*0.4 && tn<=r.price*15){   // plausible price target only
+      if(old) s+=` - admin's old target <b>Rs ${tn}</b>`;            // historical: entry long gone, no live upside math
+      else if(tn<=r.price) s+=` - admin target <b>Rs ${tn}</b> (already reached)`;
+      else s+=` - admin target <b>Rs ${tn}</b> (+${((tn/r.price-1)*100).toFixed(0)}% from here)`;
+    }
+    // else: implausible number (e.g. a '10' from '10%'/'10 days') -> not a real price target, skip
+  }
+  if(r.rwTag) s+=` <span class="b new">${r.rwTag}</span>`;
+  if(r.rwCallDate) s+=` <span style="color:var(--faint)">(admin called ${r.rwCallDate})</span>`;
+  return s;
+}
+function volCell(r){
+  if(r.relVol==null) return '<span class="rv lo">-</span>';
+  const c=r.relVol>=3?"hi":r.relVol<1?"lo":"mid";
+  return `<span class="rv ${c}" title="today's volume vs this stock's own 20-day average">${r.relVol}x</span>`;
+}
+function stripCell(r){
+  if(!r.strip||!r.strip.length) return '<span class="strip"><span class="ld">-</span></span>';
+  const cls=x=>x===2?"lead":x===1?"on":"";
+  const cells=r.strip.map(x=>`<i class="${cls(x)}"></i>`).join("");
+  return `<span class="strip" title="last 20 sheets - filled = RS-leader day">${cells}<span class="ld">${r.leaderDays}/20</span></span>`;
+}
+function phaseChip(r){
+  if(r.phase==="SOS") return '<span class="ph phSOS" title="Sign of Strength: range breakout today, on volume">SOS</span>';
+  if(r.phase==="LPS") return '<span class="ph phLPS" title="Last Point of Support: leader resting at support">LPS</span>';
+  if(r.phase==="Base") return '<span class="ph phBase" title="Cause building: volatility contracting inside a range">Base</span>';
+  return '<span class="ph phNone">-</span>';
+}
+const money=v=>v==null?"-":"Rs "+v.toLocaleString("en-IN");
+const sgn=(v,s)=>v==null?"-":(v>0?"+":"")+v.toFixed(s??1);
+
+function ladder(v){
+  const top=v.slice().sort((a,b)=>(b.score??0)-(a.score??0)).slice(0,10)
+             .filter(r=>r.rs!=null);
+  const el=document.getElementById("ladder");
+  if(!top.length){el.innerHTML='<div style="color:var(--faint);font-size:.8rem">No RS data in current view.</div>';return;}
+  // one shared scale for both signs (honest magnitudes); zero-line shifts
+  // right only when negatives are actually present
+  const mx=Math.max(...top.map(r=>Math.abs(r.rs)),1);
+  const hasNeg=top.some(r=>r.rs<0);
+  const zero=hasNeg?32:1, span=hasNeg?30:84;   // % of track
+  el.innerHTML=top.map(r=>{
+    const w=Math.abs(r.rs)/mx*span, neg=r.rs<0;
+    const barLeft=neg?(zero-w):zero;
+    const lblLeft=neg?(zero+1.5):(zero+w+1.5);
+    return `<div class="lrow" data-sym="${r.sym}" title="open row">
+      <span class="s">${r.sym}</span>
+      <span class="ltrack"><span class="zero" style="left:${zero}%"></span>
+        <span class="lbar ${neg?"neg":""}" style="left:${barLeft}%;width:${w}%"></span>
+        <span class="lval" style="left:${lblLeft}%">${sgn(r.rs)}pp</span>
+      </span></div>`;
+  }).join("");
+  el.querySelectorAll(".lrow").forEach(b=>b.addEventListener("click",()=>{
+    st.openSym=b.dataset.sym;render();
+    const row=document.querySelector(`tr[data-sym="${b.dataset.sym}"]`);
+    if(row) row.scrollIntoView({block:"center"});
+  }));
+}
+
+function rows(v){
+  const tb=document.getElementById("rows");
+  tb.innerHTML=v.map(r=>{
+    const chgCls=r.chg==null?"":(r.chg>=0?"pos":"negv");
+    let html=`<tr class="main" data-sym="${r.sym}">
+      <td>${markStar(r)}</td>
+      <td class="num">${r.rank}</td>
+      <td><span class="chip t${r.tier}">${r.tier}-${r.checks}/6</span></td>
+      <td>${phaseChip(r)}</td>
+      <td>${r.sym}${tvLink(r.sym)}${r.isNew?'<span class="b new" title="new entrant vs previous sheet">NEW</span>':''}${moverArr(r)}${ledBadge(r)}<span class="nm">${r.name}</span><span class="sec">${r.sector||""}</span></td>
+      <td class="num">${r.score??"-"}</td>
+      <td class="num">${sgn(r.rs)}</td>
+      <td>${stripCell(r)}</td>
+      <td class="num ${chgCls}">${sgn(r.chg,2)}%</td>
+      <td class="num">${volCell(r)}</td>
+      <td class="cspark">${sparkSvg(r.spark)}</td>
+      <td class="num">${money(r.price)}${sharesFor(r)}</td>
+      <td class="num">${money(r.target)}</td>
+      <td class="num">${money(r.stop)}</td>
+      <td class="num">${r.rr==null?"-":"1:"+r.rr.toFixed(1)}</td>
+      <td class="num">${rwCell(r)}</td>
+      <td>${badge(r)}</td></tr>`;
+    if(st.openSym===r.sym){
+      html+=`<tr class="detail"><td colspan="17">
+        <div style="margin-bottom:.35rem"><b>Score composition:</b> ${breakdownBar(r)}</div>
+        <div class="plan">Plan: entry <b>${money(r.price)}</b> -> target <b>${money(r.target)}</b> (+${r.targetPct??"?"}%) -
+          stop <b>${money(r.stop)}</b> (-${r.stopPct??"?"}%) - R:R 1:${r.rr??"?"} - ${r.basis==="ATR"?"volatility-sized":"flat fallback"}</div>
+        <div><b>Sector:</b> ${r.sector} - <b>Series:</b> ${r.series} ${r.freshList?` - <b>Fired today:</b> ${r.freshList}`:""}</div>
+        <div style="margin-top:.3rem"><b>Leadership:</b> ${stripCell(r)} &nbsp; ${r.persistent?"persistent leader (led >=12 of last 20 sheets  -  historically ~24% hit rate vs ~15% for fresh)":r.newLeader?"newly emerged as a leader today":r.leaderDays?("led "+r.leaderDays+" of the last 20 sheets"):"not a recent market leader"}</div>
+        ${(r.rwMentions||r.rwAdmin||r.rwTarget||r.rwTag)?`<div style="margin-top:.3rem"><b>RIGHTWAY:</b> ${r.rwMentions?`mentioned ${r.rwMentions}x in 45d, last ${r.rwLast} (${r.rwDays}d ago)`:"not in recent 45d buzz"}${r.rwAdmin?` - <b>admin also mentioned it ${r.rwAdmin}x recently</b>`:""}${rwCallInfo(r)}. Note: this channel often posts winners after they move - a mention is 'they're talking about it', not a proven edge.</div>`:""}
+        <div style="margin-top:.3rem">${r.reasoning}</div>
+      </td></tr>`;
+    }
+    return html;
+  }).join("");
+  tb.querySelectorAll("tr.main").forEach(tr=>tr.addEventListener("click",()=>{
+    st.openSym = st.openSym===tr.dataset.sym?null:tr.dataset.sym; render();
+  }));
+  tb.querySelectorAll(".star").forEach(s=>s.addEventListener("click",e=>{
+    e.stopPropagation();
+    const sym=s.dataset.star;
+    if(e.shiftKey){ if(dismissed[sym]) delete dismissed[sym]; else dismissed[sym]=1; }
+    else { const cur=marks[sym]||""; const nx=cur===""?"watch":cur==="watch"?"taken":""; if(nx) marks[sym]=nx; else delete marks[sym]; }
+    persist(); render();
+  }));
+}
+
+// ---------- market-context strip, alerts, tab counts ----------
+function marketStrip(){
+  const el=document.getElementById("mstrip"); const M=META.market;
+  if(!M||M.breadth==null){el.style.display="none";return;}
+  const tone=M.breadth>=55?"strong":M.breadth<=35?"weak":"mixed";
+  el.innerHTML=`<span><b>Market breadth</b> ${M.breadth}% above 50-DMA <span class="mbar"><i style="width:${M.breadth}%"></i></span> (${tone}, ${M.universe} stocks, ${M.date})</span>`
+    +`<span style="color:var(--faint)">context only  -  a breadth filter tested WORSE, so we never gate on it.</span>`;
+}
+function alertsBanner(){
+  const el=document.getElementById("alerts"); const A=(META.alerts||[]);
+  if(!A.length){el.style.display="none";return;}
+  el.innerHTML=A.map(a=>`<span class="alert ${a.kind}"><b>${a.sym}</b> ${a.kind.replace('-',' ')}  -  ${a.detail}</span>`).join("");
+}
+function tabCounts(){
+  const w=Object.keys(marks).length;
+  const d=(META.diff?((META.diff.newCount||0)+(META.diff.dropped||[]).length):0);
+  const l=(META.ledgerOpen||[]).length;
+  document.getElementById("wcnt").textContent=w?w:"";
+  document.getElementById("ccnt").textContent=d?d:"";
+  document.getElementById("lcnt").textContent=l?l:"";
+}
+
+// ---------- extra pages ----------
+function renderWatchlist(){
+  const el=document.getElementById("page-watchlist");
+  const rowsM=DATA.filter(r=>marks[r.sym]);
+  if(!rowsM.length){el.innerHTML='<div class="emptynote">Nothing marked yet. On the Shortlist, click a row\'s star: once = watching, twice = taken.</div>';return;}
+  const body=rowsM.map(r=>`<tr><td>${markStar(r)}</td><td class="txt">${r.sym}${tvLink(r.sym)} <span style="color:var(--soft)">${r.name}</span>${ledBadge(r)}</td>
+    <td>${marks[r.sym]}</td><td>${r.score??"-"}</td><td>${sgn(r.rs)}</td><td>${sparkSvg(r.spark)}</td>
+    <td>${money(r.price)}</td><td>${money(r.target)}</td><td>${money(r.stop)}</td><td>${sharesFor(r)||"-"}</td></tr>`).join("");
+  el.innerHTML=`<div class="panel"><div class="cap">Your marked names (* watching / taken)  -  saved in this browser.</div>
+    <table class="wtable"><thead><tr><th></th><th>Stock</th><th>Mark</th><th>Score</th><th>RS</th><th>Trend</th><th>Price</th><th>Target</th><th>Stop</th><th>Size</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  el.querySelectorAll(".star").forEach(s=>s.addEventListener("click",e=>{e.stopPropagation();const sym=s.dataset.star;
+    if(e.shiftKey){if(dismissed[sym])delete dismissed[sym];else dismissed[sym]=1;}
+    else{const c=marks[sym]||"";const n=c===""?"watch":c==="watch"?"taken":"";if(n)marks[sym]=n;else delete marks[sym];}
+    persist();render();}));
+}
+function renderChanges(){
+  const el=document.getElementById("page-changes"); const D=META.diff;
+  if(!D||!D.prevDate){el.innerHTML='<div class="emptynote">No previous sheet found to compare against.</div>';return;}
+  const news=DATA.filter(r=>r.isNew).sort((a,b)=>(a.rank-b.rank));
+  const newTbl=news.length?`<table class="wtable"><thead><tr><th>#</th><th>Stock</th><th>Score</th><th>RS</th><th>Signals</th></tr></thead><tbody>`+
+    news.map(r=>`<tr><td>${r.rank}</td><td class="txt">${r.sym}${tvLink(r.sym)} <span style="color:var(--soft)">${r.name}</span></td><td>${r.score}</td><td>${sgn(r.rs)}</td><td class="txt">${badge(r)}</td></tr>`).join("")+`</tbody></table>`:'<div class="emptynote">No new entrants.</div>';
+  const drop=(D.dropped||[]);
+  const dropTbl=drop.length?`<table class="wtable"><thead><tr><th>Stock</th><th>Prev #</th><th>Prev score</th></tr></thead><tbody>`+
+    drop.map(x=>`<tr><td class="txt">${x.sym}${tvLink(x.sym)} <span style="color:var(--soft)">${x.name}</span></td><td>${x.rank||"-"}</td><td>${x.score??"-"}</td></tr>`).join("")+`</tbody></table>`:'<div class="emptynote">Nothing dropped off.</div>';
+  const mv=(D.movers||[]);
+  const mvTbl=mv.length?`<table class="wtable"><thead><tr><th>Stock</th><th>Score Δ</th><th>Rank Δ</th><th>Score</th></tr></thead><tbody>`+
+    mv.map(x=>`<tr><td class="txt">${x.sym}${tvLink(x.sym)}</td><td class="${x.scoreDelta>=0?'':''}" style="color:${x.scoreDelta>=0?'var(--good)':'var(--critical)'}">${x.scoreDelta>0?'+':''}${x.scoreDelta}</td><td>${x.rankDelta==null?'-':(x.rankDelta>0?'+':'')+x.rankDelta}</td><td>${x.score}</td></tr>`).join("")+`</tbody></table>`:'<div class="emptynote">No score movers.</div>';
+  el.innerHTML=`<div class="panel"><div class="cap">Since the previous sheet (${D.prevDate})  -  ${D.newCount} new, ${drop.length} dropped.</div>
+    <h3 style="margin:.4rem 0">New entrants</h3>${newTbl}
+    <h3 style="margin:1rem 0 .4rem">Dropped off</h3>${dropTbl}
+    <h3 style="margin:1rem 0 .4rem">Biggest score movers</h3>${mvTbl}</div>`;
+}
+function renderLedger(){
+  const el=document.getElementById("page-ledger"); const L=META.ledger, O=(META.ledgerOpen||[]);
+  let head="";
+  if(L){head=`<div class="pnlhead">Paper ledger  -  ${L.closed} closed, ${L.open} open`+(L.winRate!=null?` - ${L.winRate}% hit target - avg ${L.avgRealized>=0?'+':''}${L.avgRealized}%/trade`:"")+`</div>`;}
+  const body=O.length?`<table class="wtable"><thead><tr><th>Stock</th><th>Since</th><th>Days</th><th>Entry</th><th>Last</th><th>Unreal</th><th>Peak</th><th>Target</th><th>Stop</th><th>Lens</th></tr></thead><tbody>`+
+    O.map(o=>`<tr><td class="txt">${o.sym}${tvLink(o.sym)}</td><td>${o.entryDate}</td><td>${o.days}</td><td>${money(o.entry)}</td><td>${money(o.last)}</td>
+      <td style="color:${(o.unreal||0)>=0?'var(--good)':'var(--critical)'}">${o.unreal==null?'-':(o.unreal>=0?'+':'')+o.unreal+'%'}</td>
+      <td>${o.peak==null?'-':'+'+o.peak+'%'}</td><td>${money(o.target)}</td><td>${money(o.stop)}</td>
+      <td class="txt">${o.persistent?'persistent ':''}${o.ep?'EP':''}</td></tr>`).join("")+`</tbody></table>`
+    :'<div class="emptynote">No open paper positions yet. They are snapshotted from the shortlist each day the pipeline runs.</div>';
+  el.innerHTML=`<div class="panel">${head}${body}</div>`;
+}
+
+// ---------- page routing + main render ----------
+function setPage(p){
+  st.page=p; persist();
+  ["shortlist","watchlist","changes","ledger"].forEach(x=>{
+    const sec=document.getElementById("page-"+x); if(sec) sec.classList.toggle("pagehide",x!==p);
+  });
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.page===p));
+  render();
+}
+function render(){
+  marketStrip(); alertsBanner(); tabCounts();
+  if(st.page==="shortlist"){
+    const v=visible();
+    const hid=Object.keys(dismissed).length;
+    document.getElementById("count").textContent=`showing ${v.length} of ${META.shown}`+(hid&&!st.showDismissed?` - ${hid} hidden (shift+click * to dismiss; toggle with 'd')`:"");
+    document.querySelectorAll("thead th.sortable").forEach(th=>{
+      th.querySelector(".arr").textContent = th.dataset.s===st.sortKey?(st.sortDir===1?" ^":" v"):"";
+    });
+    ladder(v); rows(v);
+  } else if(st.page==="watchlist") renderWatchlist();
+  else if(st.page==="changes") renderChanges();
+  else if(st.page==="ledger") renderLedger();
+}
+
+function syncControls(){
+  document.querySelectorAll(".tog[data-k]").forEach(b=>b.setAttribute("aria-pressed",String(!!st[b.dataset.k])));
+  document.querySelectorAll(".tog[data-setup]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.setup===st.setup)));
+  document.getElementById("minRs").value=st.minRs;
+  document.getElementById("secf").value=st.sector;
+  document.getElementById("q").value=st.q;
+  document.getElementById("capital").value=st.capital;
+  document.getElementById("riskpct").value=st.risk;
+}
+
+// sector dropdown options
+(function(){
+  const secs=[...new Set(DATA.map(r=>r.sector).filter(Boolean))].sort();
+  const sel=document.getElementById("secf");
+  secs.forEach(s=>{const o=document.createElement("option");o.value=s;o.textContent=s.length>28?s.slice(0,27)+"...":s;sel.appendChild(o);});
+})();
+
+document.querySelectorAll(".tog[data-k]").forEach(b=>b.addEventListener("click",()=>{
+  st[b.dataset.k]=!st[b.dataset.k]; syncControls(); persist(); render();
+}));
+const SETUP_PRESETS={
+  "":   {},
+  sos:  {fresh:true, vol:true, noext:true, nolag:true, minRs:"5", tC:false},
+  lps:  {fresh:false, vol:false, noext:true, nolag:true, minRs:"5", tC:true},
+  ep:   {fresh:false, vol:false, noext:false, nolag:true, minRs:"5", tC:true},
+};
+document.querySelectorAll(".tog[data-setup]").forEach(b=>b.addEventListener("click",()=>{
+  st.setup=b.dataset.setup; Object.assign(st, SETUP_PRESETS[st.setup]||{}); syncControls(); persist(); render();
+}));
+document.getElementById("minRs").addEventListener("change",e=>{st.minRs=e.target.value;persist();render();});
+document.getElementById("secf").addEventListener("change",e=>{st.sector=e.target.value;persist();render();});
+document.getElementById("q").addEventListener("input",e=>{st.q=e.target.value.trim().toLowerCase();render();});
+document.querySelectorAll("thead th.sortable").forEach(th=>th.addEventListener("click",()=>{
+  const k=th.dataset.s;
+  if(st.sortKey===k) st.sortDir*=-1; else {st.sortKey=k; st.sortDir = k==="rank"?1:-1;}
+  persist(); render();
+}));
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>setPage(t.dataset.page)));
+document.getElementById("capital").addEventListener("input",e=>{st.capital=e.target.value;persist();render();});
+document.getElementById("riskpct").addEventListener("input",e=>{st.risk=e.target.value;persist();render();});
+document.getElementById("themeBtn").addEventListener("click",()=>{
+  const cur=document.documentElement.dataset.theme;
+  const nx=cur==="dark"?"light":"dark"; document.documentElement.dataset.theme=nx; st.theme=nx; persist();
+});
+document.getElementById("densityBtn").addEventListener("click",()=>{
+  st.density=st.density==="compact"?"":"compact"; document.body.classList.toggle("compact",st.density==="compact"); persist();
+});
+document.getElementById("colBtn").addEventListener("click",()=>{
+  // cycle: both -> no spark -> no sector -> both
+  if(st.colSpark&&st.colSec){st.colSpark=false;} else if(!st.colSpark&&st.colSec){st.colSpark=true;st.colSec=false;} else {st.colSpark=true;st.colSec=true;}
+  applyColHide(); persist();
+});
+document.getElementById("exportBtn").addEventListener("click",()=>{
+  const v=st.page==="shortlist"?visible():DATA.filter(r=>marks[r.sym]);
+  const cols=["rank","sym","name","sector","score","rs","chg","relVol","price","target","stop","rr","phase","persistent","ep","emerging","isNew"];
+  const esc=x=>{const s=(x==null?"":String(x)).replace(/"/g,'""');return /[",\n]/.test(s)?`"${s}"`:s;};
+  const csv=[cols.join(",")].concat(v.map(r=>cols.map(c=>esc(r[c])).join(","))).join("\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="odin_"+(META.sheetDate||"today").replace(/ /g,"_")+"_"+st.page+".csv"; a.click();
+});
+
+const modalOpen=o=>document.body.classList.toggle("open",o);
+document.getElementById("helpBtn").addEventListener("click",()=>modalOpen(true));
+document.getElementById("closeBtn").addEventListener("click",()=>modalOpen(false));
+document.getElementById("backdrop").addEventListener("click",()=>modalOpen(false));
+
+// keyboard: Esc close - / search - 1-4 tabs - t theme - d dismissed - j/k rows - Enter expand
+let cursor=-1;
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){modalOpen(false);return;}
+  const tag=(e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="select"||tag==="textarea") return;
+  if(e.key==="/"){e.preventDefault();document.getElementById("q").focus();return;}
+  if(e.key==="t"){document.getElementById("themeBtn").click();return;}
+  if(e.key==="d"){st.showDismissed=!st.showDismissed;persist();render();return;}
+  if(["1","2","3","4"].includes(e.key)){setPage(["shortlist","watchlist","changes","ledger"][+e.key-1]);return;}
+  if(st.page!=="shortlist") return;
+  const v=visible();
+  if(e.key==="j"||e.key==="k"){
+    cursor=Math.max(0,Math.min(v.length-1,cursor+(e.key==="j"?1:-1)));
+    const row=document.querySelector(`tr.main[data-sym="${v[cursor].sym}"]`);
+    if(row){row.scrollIntoView({block:"center"});row.style.outline="2px solid var(--accent)";setTimeout(()=>row.style.outline="",600);}
+  }
+  if(e.key==="Enter"&&cursor>=0&&v[cursor]){st.openSym=st.openSym===v[cursor].sym?null:v[cursor].sym;render();}
+});
+
+syncControls(); tiles(); pnl(); setPage(st.page||"shortlist");
+</script>

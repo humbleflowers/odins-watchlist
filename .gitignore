@@ -1,0 +1,31 @@
+# ---- Secrets / credentials (NEVER commit) ----
+*.session
+*.session-journal
+odin_tg.session
+.env
+
+# ---- Private / personal data ----
+telegram_messages.csv
+telegram_recs.csv
+telegram_state.json
+paper_ledger.csv
+# raw dashboard embeds private RIGHTWAY/ledger data; publish sanitized index.html instead
+dashboard.html
+
+# ---- Daily market data & large generated data ----
+odin_*.csv
+swing_candidates_*.csv
+ranking_*.csv
+backtest_output/
+nse_downloads/
+chartink_downloads/
+chartink_downloads_*/
+
+# ---- Python / OS junk ----
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.ipynb_checkpoints/
+venv/
+.venv/

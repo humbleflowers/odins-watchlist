@@ -1,0 +1,606 @@
+{
+  "uc1": {
+    "title": "Core top-10 by Setup Score",
+    "subtitle": "Every day's ten highest scores.",
+    "n": 519,
+    "win_rate": 20,
+    "touch_rate": 25,
+    "examples": [
+      {
+        "date": "2026-07-09",
+        "symbol": "KALYANKJIL",
+        "price": 443.0,
+        "score": 99,
+        "rs": 30,
+        "extra": {},
+        "win": 1,
+        "peak": 30
+      },
+      {
+        "date": "2026-07-14",
+        "symbol": "SHARDUL",
+        "price": 44.4,
+        "score": 78,
+        "rs": 49,
+        "extra": {},
+        "win": 1,
+        "peak": 28
+      },
+      {
+        "date": "2025-08-18",
+        "symbol": "STALLION",
+        "price": 152.1,
+        "score": 70,
+        "rs": 47,
+        "extra": {},
+        "win": 1,
+        "peak": 88
+      },
+      {
+        "date": "2026-07-06",
+        "symbol": "AARTECH",
+        "price": 57.5,
+        "score": 100,
+        "rs": 34,
+        "extra": {},
+        "win": 0,
+        "peak": -8
+      },
+      {
+        "date": "2026-07-06",
+        "symbol": "DIGITIDE",
+        "price": 120.5,
+        "score": 100,
+        "rs": 37,
+        "extra": {},
+        "win": 0,
+        "peak": -10
+      }
+    ]
+  },
+  "uc2": {
+    "title": "Persistent leaders (led >=12 of last 20 days)",
+    "subtitle": "Durable market leaders.",
+    "n": 439,
+    "win_rate": 21,
+    "touch_rate": 24,
+    "examples": [
+      {
+        "date": "2026-07-07",
+        "symbol": "TBZ",
+        "price": 198.7,
+        "score": 72,
+        "rs": 12,
+        "extra": {
+          "strip": 12
+        },
+        "win": 1,
+        "peak": 31
+      },
+      {
+        "date": "2025-08-18",
+        "symbol": "STALLION",
+        "price": 152.1,
+        "score": 70,
+        "rs": 47,
+        "extra": {
+          "strip": 20
+        },
+        "win": 1,
+        "peak": 88
+      },
+      {
+        "date": "2025-10-06",
+        "symbol": "INDOTHAI",
+        "price": 313.8,
+        "score": 62,
+        "rs": 97,
+        "extra": {
+          "strip": 13
+        },
+        "win": 1,
+        "peak": 44
+      },
+      {
+        "date": "2026-07-09",
+        "symbol": "UNICHEMLAB",
+        "price": 650.6,
+        "score": 100,
+        "rs": 37,
+        "extra": {
+          "strip": 20
+        },
+        "win": 0,
+        "peak": -2
+      },
+      {
+        "date": "2026-07-10",
+        "symbol": "WABAG",
+        "price": 2221.2,
+        "score": 95,
+        "rs": 38,
+        "extra": {
+          "strip": 20
+        },
+        "win": 0,
+        "peak": -1
+      }
+    ]
+  },
+  "uc3": {
+    "title": "Persistent leader + fresh breakout",
+    "subtitle": "Durable leader firing a breakout.",
+    "n": 49,
+    "win_rate": 2,
+    "touch_rate": 2,
+    "examples": [
+      {
+        "date": "2026-07-07",
+        "symbol": "TBZ",
+        "price": 198.7,
+        "score": 72,
+        "rs": 12,
+        "extra": {
+          "strip": 12
+        },
+        "win": 1,
+        "peak": 31
+      },
+      {
+        "date": "2026-07-09",
+        "symbol": "UNICHEMLAB",
+        "price": 650.6,
+        "score": 100,
+        "rs": 37,
+        "extra": {
+          "strip": 20
+        },
+        "win": 0,
+        "peak": -2
+      },
+      {
+        "date": "2026-07-06",
+        "symbol": "AEGISLOG",
+        "price": 1409.2,
+        "score": 95,
+        "rs": 81,
+        "extra": {
+          "strip": 20
+        },
+        "win": 0,
+        "peak": -2
+      }
+    ]
+  },
+  "uc4": {
+    "title": "Episodic Pivot (gap >=4% on >=3x volume)",
+    "subtitle": "Catalyst gap-ups.",
+    "n": 235,
+    "win_rate": 21,
+    "touch_rate": 27,
+    "examples": [
+      {
+        "date": "2025-11-17",
+        "symbol": "SABTNL",
+        "price": 1030.2,
+        "score": 47,
+        "rs": 22,
+        "extra": {
+          "gap%": 5,
+          "rvol": 17
+        },
+        "win": 1,
+        "peak": 80
+      },
+      {
+        "date": "2025-07-23",
+        "symbol": "INFOBEAN",
+        "price": 538.2,
+        "score": 50,
+        "rs": 44,
+        "extra": {
+          "gap%": 16,
+          "rvol": 15
+        },
+        "win": 1,
+        "peak": 28
+      },
+      {
+        "date": "2025-10-27",
+        "symbol": "BHAGYANGR",
+        "price": 120.3,
+        "score": 43,
+        "rs": 20,
+        "extra": {
+          "gap%": 18,
+          "rvol": 14
+        },
+        "win": 1,
+        "peak": 34
+      },
+      {
+        "date": "2025-12-18",
+        "symbol": "AWHCL",
+        "price": 514.0,
+        "score": 40,
+        "rs": 11,
+        "extra": {
+          "gap%": 6,
+          "rvol": 19
+        },
+        "win": 0,
+        "peak": 11
+      },
+      {
+        "date": "2025-09-04",
+        "symbol": "ATULAUTO",
+        "price": 509.1,
+        "score": 47,
+        "rs": 13,
+        "extra": {
+          "gap%": 6,
+          "rvol": 18
+        },
+        "win": 0,
+        "peak": 5
+      }
+    ]
+  },
+  "uc5": {
+    "title": "Wyckoff SOS / breakout trigger",
+    "subtitle": "Breakout-structure entries.",
+    "n": 471,
+    "win_rate": 11,
+    "touch_rate": 14,
+    "examples": [
+      {
+        "date": "2026-01-09",
+        "symbol": "MANAKALUCO",
+        "price": 38.3,
+        "score": 68,
+        "rs": 59,
+        "extra": {
+          "phase": "Breakout Trigger"
+        },
+        "win": 1,
+        "peak": 69
+      },
+      {
+        "date": "2025-12-26",
+        "symbol": "MCL",
+        "price": 59.0,
+        "score": 60,
+        "rs": 35,
+        "extra": {
+          "phase": "Breakout Trigger"
+        },
+        "win": 1,
+        "peak": 50
+      },
+      {
+        "date": "2025-12-24",
+        "symbol": "SILVERBEES",
+        "price": 209.2,
+        "score": 60,
+        "rs": 38,
+        "extra": {
+          "phase": "Breakout Trigger"
+        },
+        "win": 1,
+        "peak": 68
+      },
+      {
+        "date": "2026-07-06",
+        "symbol": "AARTECH",
+        "price": 57.5,
+        "score": 100,
+        "rs": 34,
+        "extra": {
+          "phase": "Breakout Trigger"
+        },
+        "win": 0,
+        "peak": -8
+      },
+      {
+        "date": "2026-07-06",
+        "symbol": "DIGITIDE",
+        "price": 120.5,
+        "score": 100,
+        "rs": 37,
+        "extra": {
+          "phase": "Breakout Trigger"
+        },
+        "win": 0,
+        "peak": -10
+      }
+    ]
+  },
+  "uc6": {
+    "title": "Wyckoff LPS / rebound-setup (pullback entry)",
+    "subtitle": "Post-strength pullback entries.",
+    "n": 267,
+    "win_rate": 11,
+    "touch_rate": 14,
+    "examples": [
+      {
+        "date": "2026-01-06",
+        "symbol": "MANGALAM",
+        "price": 33.4,
+        "score": 64,
+        "rs": 33,
+        "extra": {
+          "phase": "Rebound Setup"
+        },
+        "win": 1,
+        "peak": 55
+      },
+      {
+        "date": "2025-12-22",
+        "symbol": "KESORAMIND",
+        "price": 10.9,
+        "score": 60,
+        "rs": 115,
+        "extra": {
+          "phase": "Rebound Setup"
+        },
+        "win": 1,
+        "peak": 27
+      },
+      {
+        "date": "2025-12-24",
+        "symbol": "TCIFINANCE",
+        "price": 22.5,
+        "score": 60,
+        "rs": 102,
+        "extra": {
+          "phase": "Rebound Setup"
+        },
+        "win": 1,
+        "peak": 63
+      },
+      {
+        "date": "2026-07-06",
+        "symbol": "MOREPENLAB",
+        "price": 60.8,
+        "score": 95,
+        "rs": 36,
+        "extra": {
+          "phase": "Rebound Setup"
+        },
+        "win": 0,
+        "peak": 3
+      },
+      {
+        "date": "2026-07-17",
+        "symbol": "MAPMYINDIA",
+        "price": 1173.0,
+        "score": 70,
+        "rs": 31,
+        "extra": {
+          "phase": "Rebound Setup"
+        },
+        "win": 0,
+        "peak": -6
+      }
+    ]
+  },
+  "uc7": {
+    "title": "Emerging (volume thrust >=3x, RS 0..+25)",
+    "subtitle": "Early wake-up before obvious leadership.",
+    "n": 133,
+    "win_rate": 4,
+    "touch_rate": 7,
+    "examples": [
+      {
+        "date": "2026-07-08",
+        "symbol": "DPABHUSHAN",
+        "price": 1076.0,
+        "score": 55,
+        "rs": 17,
+        "extra": {
+          "rvol": 14,
+          "RS": 17
+        },
+        "win": 1,
+        "peak": 37
+      },
+      {
+        "date": "2025-07-28",
+        "symbol": "CARTRADE",
+        "price": 2066.9,
+        "score": 59,
+        "rs": 25,
+        "extra": {
+          "rvol": 8,
+          "RS": 25
+        },
+        "win": 1,
+        "peak": 32
+      },
+      {
+        "date": "2026-07-10",
+        "symbol": "SHARDUL",
+        "price": 33.6,
+        "score": 61,
+        "rs": 12,
+        "extra": {
+          "rvol": 6,
+          "RS": 12
+        },
+        "win": 1,
+        "peak": 68
+      },
+      {
+        "date": "2026-07-14",
+        "symbol": "HGS",
+        "price": 453.6,
+        "score": 65,
+        "rs": 5,
+        "extra": {
+          "rvol": 17,
+          "RS": 5
+        },
+        "win": 0,
+        "peak": -4
+      },
+      {
+        "date": "2026-07-13",
+        "symbol": "PURVA",
+        "price": 248.4,
+        "score": 72,
+        "rs": 14,
+        "extra": {
+          "rvol": 17,
+          "RS": 14
+        },
+        "win": 0,
+        "peak": -5
+      }
+    ]
+  },
+  "anti1": {
+    "title": "High score (>=75) but near-empty leadership strip (<=2/20)",
+    "subtitle": "The one-day-flare trap.",
+    "n": 27,
+    "win_rate": 10,
+    "touch_rate": 10,
+    "examples": [
+      {
+        "date": "2026-07-09",
+        "symbol": "KALYANKJIL",
+        "price": 443.0,
+        "score": 99,
+        "rs": 30,
+        "extra": {
+          "strip": 1
+        },
+        "win": 1,
+        "peak": 30
+      },
+      {
+        "date": "2026-07-09",
+        "symbol": "DPABHUSHAN",
+        "price": 1151.0,
+        "score": 83,
+        "rs": 26,
+        "extra": {
+          "strip": 2
+        },
+        "win": 1,
+        "peak": 28
+      },
+      {
+        "date": "2026-07-06",
+        "symbol": "DIGITIDE",
+        "price": 120.5,
+        "score": 100,
+        "rs": 37,
+        "extra": {
+          "strip": 1
+        },
+        "win": 0,
+        "peak": -10
+      },
+      {
+        "date": "2026-07-09",
+        "symbol": "MASTERTR",
+        "price": 94.8,
+        "score": 91,
+        "rs": 22,
+        "extra": {
+          "strip": 1
+        },
+        "win": 0,
+        "peak": -2
+      },
+      {
+        "date": "2026-07-10",
+        "symbol": "GODREJIND",
+        "price": 1417.7,
+        "score": 91,
+        "rs": 34,
+        "extra": {
+          "strip": 2
+        },
+        "win": 0,
+        "peak": -2
+      }
+    ]
+  },
+  "anti2": {
+    "title": "High delivery % (>=80) - the rejected 'accumulation' lens",
+    "subtitle": "Tested and dropped.",
+    "n": 81,
+    "win_rate": 26,
+    "touch_rate": 28,
+    "examples": [
+      {
+        "date": "2025-09-16",
+        "symbol": "SEJALLTD",
+        "price": 713.8,
+        "score": 54,
+        "rs": 32,
+        "extra": {
+          "deliv%": 100
+        },
+        "win": 1,
+        "peak": 38
+      },
+      {
+        "date": "2025-07-14",
+        "symbol": "SOMATEX",
+        "price": 71.1,
+        "score": 42,
+        "rs": 65,
+        "extra": {
+          "deliv%": 100
+        },
+        "win": 1,
+        "peak": 47
+      },
+      {
+        "date": "2025-08-22",
+        "symbol": "OSWALSEEDS",
+        "price": 18.4,
+        "score": 58,
+        "rs": 45,
+        "extra": {
+          "deliv%": 100
+        },
+        "win": 0,
+        "peak": -5
+      },
+      {
+        "date": "2025-10-28",
+        "symbol": "MEGASOFT",
+        "price": 194.7,
+        "score": 42,
+        "rs": 23,
+        "extra": {
+          "deliv%": 100
+        },
+        "win": 0,
+        "peak": 14
+      },
+      {
+        "date": "2025-07-16",
+        "symbol": "EXCEL",
+        "price": 1.1,
+        "score": 53,
+        "rs": 30,
+        "extra": {
+          "deliv%": 100
+        },
+        "win": 0,
+        "peak": 27
+      }
+    ]
+  },
+  "_meta": {
+    "dates": "2025-07-11 to 2026-07-20",
+    "ndates": 157,
+    "n_resolved": 315693,
+    "base_win": 5,
+    "base_touch": 6
+  }
+}
